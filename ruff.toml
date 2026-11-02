@@ -1,0 +1,15 @@
+line-length = 120
+target-version = "py311"
+src = ["api", "tests"]
+extend-exclude = ["frontend", "backend", "database", "ai_service"]
+
+[lint]
+select = ["E", "F", "I", "B", "UP", "S", "SIM", "C4", "RUF"]
+ignore = ["S101", "B008", "RUF012", "RUF005", "E501", "UP038"]
+
+[lint.per-file-ignores]
+"tests/**" = ["S", "B", "SIM", "RUF", "C4", "E", "UP"]
+"scripts/**" = ["S101", "S603", "S607"]
+
+[format]
+quote-style = "double"

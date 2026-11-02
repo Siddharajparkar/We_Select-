@@ -1,0 +1,236 @@
+name: CI/CD (FastAPI)
+
+# Tier T2 pipeline. Everything up to and including "container" runs on every push/PR with no Azure access.
+# The `deploy` job only runs on main AND when the repository variable AZURE_DEPLOY_ENABLED == 'true'
+# (set by a human after the office checkpoints OC-1..OC-3 and plan sign-off).
+
+on:
+  push:
+    branches: [main, 'phase/**', 'feature/**']
+    paths-ignore: ['docs/**', '**/*.md']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Never cancel a running deploy on main; cancel superseded PR/branch runs.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  # ── 1. Fast gate: lint, types, unit/integration/e2e (no DB, no Docker) ───────────────────────
+  fast:
+    name: Fast gate (lint, types, tests, shellcheck, plan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: api/requirements*.txt
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends unixodbc-dev shellcheck
+          python -m pip install --upgrade pip
+          pip install -r api/requirements-dev.txt
+
+      - name: Ruff (lint + format check)
+        run: |
+          ruff check api scripts tests
+          ruff format --check api scripts tests
+
+      - name: Mypy
+        run: cd api && mypy app
+
+      - name: Tests (phase 0-3) with coverage
+        run: >
+          pytest tests --cov=api/app --cov-report=term-missing --cov-report=xml:coverage.xml
+          --junitxml=junit.xml -m "not sql"
+
+      - name: Shellcheck infra and scripts
+        run: shellcheck -e SC1091 infra/azure/*.sh infra/azure/discovery/*.sh scripts/*.sh scripts/e2e/*.sh scripts/ci/*.sh
+
+      - name: Dry-run provisioning plan (no writes)
+        run: bash scripts/run-plan.sh > /dev/null
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fast-gate-reports
+          path: |
+            coverage.xml
+            junit.xml
+
+  # ── 2. SQL Server + Azurite + container: real DB, real image ─────────────────────────────────
+  container:
+    name: SQL Server 2022 + Azurite + container E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      IMAGE: assess-api:ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: api/requirements*.txt
+
+      - name: Install ODBC driver and Python dependencies
+        run: |
+          bash scripts/ci/install_odbc.sh
+          python -m pip install --upgrade pip
+          pip install -r api/requirements-dev.txt
+
+      - name: Start SQL Server 2022 and Azurite (throw-away secrets, masked)
+        run: |
+          SA_PASSWORD="Aa1!$(openssl rand -hex 12)"
+          CI_APP_PASSWORD="Bb2!$(openssl rand -hex 12)"
+          AZ_KEY="$(openssl rand -base64 32)"
+          echo "::add-mask::${SA_PASSWORD}"
+          echo "::add-mask::${CI_APP_PASSWORD}"
+          echo "::add-mask::${AZ_KEY}"
+          {
+            echo "SA_PASSWORD=${SA_PASSWORD}"
+            echo "CI_APP_PASSWORD=${CI_APP_PASSWORD}"
+            echo "AZURITE_CONNECTION_STRING=DefaultEndpointsProtocol=http;AccountName=ciacct;AccountKey=${AZ_KEY};BlobEndpoint=http://127.0.0.1:10000/ciacct;"
+          } >> "$GITHUB_ENV"
+          docker run -d --name mssql -p 1433:1433 -e ACCEPT_EULA=Y -e "MSSQL_SA_PASSWORD=${SA_PASSWORD}" \
+            mcr.microsoft.com/mssql/server:2022-latest
+          docker run -d --name azurite -p 10000:10000 -e "AZURITE_ACCOUNTS=ciacct:${AZ_KEY}" \
+            mcr.microsoft.com/azure-storage/azurite azurite-blob --blobHost 0.0.0.0 --skipApiVersionCheck
+
+      - name: Prepare database (schema + least-privilege app user)
+        run: python scripts/ci/prepare_sql.py
+
+      - name: Migrations twice via the CLI (second run must be a no-op)
+        run: |
+          export REPO_BACKEND=sql DATABASE_URL="${TEST_DATABASE_URL}"
+          cd api
+          python -m app.migrations.runner
+          python -m app.migrations.runner | tee /tmp/second-run.txt
+          grep -q "(none pending)" /tmp/second-run.txt
+
+      - name: All repository, migration and API tests on SQL Server (+ Azurite blob tests)
+        # Every API test is parametrised over the in-memory and SQL Server backends ("write once, run twice").
+        run: pytest tests -m "sql or azurite" -p no:cacheprovider
+
+      - name: Build image
+        run: docker build -t "${IMAGE}" --build-arg GIT_SHA="${GITHUB_SHA}" api
+
+      - name: Image size report (goal under 300 MB; informational)
+        run: docker image ls "${IMAGE}" --format 'size={{.Size}}'
+
+      - name: Container E2E against SQL Server (health, migrations, bad URL, SIGTERM, full harness through phase 6)
+        run: pytest tests/phase3/e2e tests/phase6/e2e -m "container" -p no:cacheprovider
+        env:
+          E2E_IMAGE: ${{ env.IMAGE }}
+          E2E_EXPECTED_VERSION: ${{ github.sha }}
+
+      - name: Trivy image scan (fail on fixable HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: assess-api:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker ps -a && docker logs mssql 2>&1 | tail -n 20
+
+  # ── 3. Security gate ────────────────────────────────────────────────────────────────────────
+  security:
+    name: Security (secret scan, dependency audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: pip-audit (runtime dependencies; advisory)
+        run: |
+          pip install pip-audit
+          pip-audit -r api/requirements.txt || echo "::warning::pip-audit reported advisories; review before release"
+
+  # ── 4. Deploy (main only, and only when a human has enabled it) ────────────────────────────
+  deploy:
+    name: Build, push to ACR, update Container App, smoke, rollback
+    needs: [fast, container, security]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AZURE_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      APP: assess-api
+      RG: ${{ vars.AZURE_RESOURCE_GROUP }}
+      ACR: ${{ vars.AZURE_ACR_NAME }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC, no stored secret)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Record current image (for rollback)
+        id: prev
+        run: |
+          prev="$(az containerapp show -n "${APP}" -g "${RG}" --query 'properties.template.containers[0].image' -o tsv)"
+          echo "image=${prev}" >> "$GITHUB_OUTPUT"
+          echo "previous image: ${prev}"
+
+      - name: Ensure ingress targets port 8080 (before the image update)
+        run: az containerapp ingress update -n "${APP}" -g "${RG}" --target-port 8080 --type external
+
+      - name: Build and push image (tag = commit SHA; no :latest)
+        run: |
+          az acr login --name "${ACR}"
+          image="${ACR}.azurecr.io/${APP}:${GITHUB_SHA}"
+          docker build -t "${image}" --build-arg GIT_SHA="${GITHUB_SHA}" api
+          docker push "${image}"
+          echo "NEW_IMAGE=${image}" >> "$GITHUB_ENV"
+
+      - name: Update Container App
+        run: >
+          az containerapp update -n "${APP}" -g "${RG}" --image "${NEW_IMAGE}"
+          --set-env-vars GIT_SHA="${GITHUB_SHA}"
+
+      - name: Resolve URL
+        id: url
+        run: |
+          fqdn="$(az containerapp show -n "${APP}" -g "${RG}" --query 'properties.configuration.ingress.fqdn' -o tsv)"
+          echo "api_url=https://${fqdn}" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test (new revision must answer with this commit SHA)
+        run: bash scripts/e2e/smoke.sh
+        env:
+          API_URL: ${{ steps.url.outputs.api_url }}
+          EXPECTED_VERSION: ${{ github.sha }}
+
+      - name: Roll back to the previous image
+        if: failure() && steps.prev.outputs.image != ''
+        run: |
+          az containerapp update -n "${APP}" -g "${RG}" --image "${{ steps.prev.outputs.image }}"
+          echo "::error::Smoke test failed; rolled back to ${{ steps.prev.outputs.image }}"

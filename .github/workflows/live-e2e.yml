@@ -1,0 +1,57 @@
+name: Live E2E Tests (Azure)
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Base URL of the deployed assess-api (https://<fqdn>)'
+        required: true
+        type: string
+      upto_phase:
+        description: 'Highest phase number to check (0-13)'
+        required: false
+        default: '6'
+        type: string
+      expected_version:
+        description: 'Commit SHA the server must report in x-app-version (optional)'
+        required: false
+        default: ''
+        type: string
+      with_ai:
+        description: 'Run checks that call the real AI deployment (phase 6 generation; a few GPT-4o calls)'
+        required: false
+        default: false
+        type: boolean
+      with_email:
+        description: 'Run checks that send real email (ACS)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  live-e2e:
+    name: Run live E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install "httpx>=0.27,<1"
+      - name: Run E2E harness
+        env:
+          E2E_PLATFORM_KEY: ${{ secrets.E2E_PLATFORM_KEY }}
+          E2E_A_EMAIL: ${{ secrets.E2E_A_EMAIL }}
+          E2E_A_PASSWORD: ${{ secrets.E2E_A_PASSWORD }}
+          E2E_B_EMAIL: ${{ secrets.E2E_B_EMAIL }}
+          E2E_B_PASSWORD: ${{ secrets.E2E_B_PASSWORD }}
+        run: >
+          python scripts/e2e/run.py --target azure
+          --base-url "${{ inputs.base_url }}"
+          --upto "${{ inputs.upto_phase }}"
+          --expected-version "${{ inputs.expected_version }}"
+          --with-ai "${{ inputs.with_ai }}"
+          --with-email "${{ inputs.with_email }}"

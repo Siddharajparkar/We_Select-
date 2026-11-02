@@ -1,0 +1,277 @@
+{
+  "info": {
+    "name": "AI Assessment Platform - Phase 3 - E2E",
+    "description": "End-to-end journey used locally and after every deploy: the new revision answers (version = commit SHA), request ids round-trip, errors are well-formed, docs exposure matches the environment, and the service stays healthy. Set baseUrl, expectedVersion (commit SHA) and docsStatus (404 in production) in the environment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "E01 service is up",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"body JSON is exact\", function () { pm.expect(pm.response.json()).to.eql({\"status\": \"ok\"}); });",
+              "pm.collectionVariables.set(\"deployedVersion\", pm.response.headers.get(\"x-app-version\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E02 the NEW revision answered (version equals expectedVersion)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.variables.get(\"expectedVersion\")) {",
+              "  pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "  pm.test(\"header x-app-version equals {{expectedVersion}}\", function () { pm.expect(pm.response.headers.get(\"x-app-version\")).to.eql(pm.variables.replaceIn(\"{{expectedVersion}}\")); });",
+              "} else {",
+              "  pm.test(\"skipped: expectedVersion not set\", function () { pm.expect(true).to.be.true; });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E03 request id round-trips",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set(\"traceId\", pm.variables.replaceIn(\"e2e-{{$guid}}\"));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"header x-request-id equals {{traceId}}\", function () { pm.expect(pm.response.headers.get(\"x-request-id\")).to.eql(pm.variables.replaceIn(\"{{traceId}}\")); });",
+              "pm.test(\"header x-app-version equals {{deployedVersion}}\", function () { pm.expect(pm.response.headers.get(\"x-app-version\")).to.eql(pm.variables.replaceIn(\"{{deployedVersion}}\")); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-request-id",
+            "value": "{{traceId}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E04 unknown route is a clean 404 envelope with the same version",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 404\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"json error.code equals NOT_FOUND\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"NOT_FOUND\"); });",
+              "pm.test(\"header x-app-version equals {{deployedVersion}}\", function () { pm.expect(pm.response.headers.get(\"x-app-version\")).to.eql(pm.variables.replaceIn(\"{{deployedVersion}}\")); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/e2e-not-found",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "e2e-not-found"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E05 oversized body is rejected and does not hurt the service",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('bigBody', \"z\".repeat(1100000));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 413\", function () { pm.response.to.have.status(413); });",
+              "pm.test(\"json error.code equals PAYLOAD_TOO_LARGE\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"PAYLOAD_TOO_LARGE\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "text/plain"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{{bigBody}}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "E06 OpenAPI docs exposure matches the environment",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status equals {{docsStatus}}\", function () { pm.response.to.have.status(parseInt(pm.variables.replaceIn(\"{{docsStatus}}\"), 10)); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/openapi.json",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "openapi.json"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E07 service still healthy at the end of the journey",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"body JSON is exact\", function () { pm.expect(pm.response.json()).to.eql({\"status\": \"ok\"}); });",
+              "pm.test(\"header x-app-version equals {{deployedVersion}}\", function () { pm.expect(pm.response.headers.get(\"x-app-version\")).to.eql(pm.variables.replaceIn(\"{{deployedVersion}}\")); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "expectedVersion",
+      "value": ""
+    },
+    {
+      "key": "docsStatus",
+      "value": "200"
+    }
+  ]
+}

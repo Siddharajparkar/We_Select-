@@ -1,0 +1,41 @@
+name: Target Load Test (k6)
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Base URL of target API'
+        required: true
+        type: string
+      profile:
+        description: 'Load test profile (target only: 20 users for at most 5 minutes; no stress profile per B3 row 30)'
+        required: true
+        default: 'target'
+        type: choice
+        options:
+          - target
+
+permissions:
+  contents: read
+
+jobs:
+  load-test:
+    name: Run k6 Load Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run Target Load Profile
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          LOAD_PROFILE: ${{ inputs.profile }}
+        run: |
+          if [ ! -f "scripts/load/exam.js" ]; then
+            echo "k6 script scripts/load/exam.js will be created in Phase 11/12."
+            exit 0
+          fi
+          k6 run --vus 20 --duration 5m scripts/load/exam.js

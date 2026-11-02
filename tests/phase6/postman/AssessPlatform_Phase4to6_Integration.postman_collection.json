@@ -1,0 +1,980 @@
+{
+  "info": {
+    "name": "AI Assessment Platform - Phases 4-6 - INTEGRATION",
+    "description": "Two tenants, one assessment: tenant isolation (404), validation order, the generation job, question review and the approval freeze. Requests run in order and share variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "I01 create tenant A",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set(\"runId\", pm.variables.replaceIn(\"{{$guid}}\"));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"json tenantId matches ^[0-9a-f-]{36}$\", function () { pm.expect(String(_.get(pm.response.json(), \"tenantId\"))).to.match(new RegExp(\"^[0-9a-f-]{36}$\")); });",
+              "pm.collectionVariables.set(\"tenantIda\", _.get(pm.response.json(), \"tenantId\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Platform-Key",
+            "value": "{{platformKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/platform/tenants",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "platform",
+            "tenants"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\": \"Tenant a {{runId}}\", \"adminName\": \"Admin a\", \"adminEmail\": \"a-{{runId}}@p46.example\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "I02 create tenant B",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"json tenantId matches ^[0-9a-f-]{36}$\", function () { pm.expect(String(_.get(pm.response.json(), \"tenantId\"))).to.match(new RegExp(\"^[0-9a-f-]{36}$\")); });",
+              "pm.collectionVariables.set(\"tenantIdb\", _.get(pm.response.json(), \"tenantId\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Platform-Key",
+            "value": "{{platformKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/platform/tenants",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "platform",
+            "tenants"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\": \"Tenant b {{runId}}\", \"adminName\": \"Admin b\", \"adminEmail\": \"b-{{runId}}@p46.example\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "I03 login A",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"header set-cookie matches sid=[^;]+;.*HttpOnly\", function () { pm.expect(pm.response.headers.get(\"set-cookie\") || '').to.match(new RegExp(\"sid=[^;]+;.*HttpOnly\", 'i')); });",
+              "pm.collectionVariables.set(\"sida\", ((new RegExp(\"sid=([^;]+)\")).exec(pm.response.headers.get(\"set-cookie\") || '') || [])[1] || '');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"a-{{runId}}@p46.example\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "I04 login B",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"header set-cookie matches sid=[^;]+;.*HttpOnly\", function () { pm.expect(pm.response.headers.get(\"set-cookie\") || '').to.match(new RegExp(\"sid=[^;]+;.*HttpOnly\", 'i')); });",
+              "pm.collectionVariables.set(\"sidb\", ((new RegExp(\"sid=([^;]+)\")).exec(pm.response.headers.get(\"set-cookie\") || '') || [])[1] || '');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"b-{{runId}}@p46.example\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "I05 /auth/me returns the caller and the tenant",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"json user.role equals admin\", function () { pm.expect(_.get(pm.response.json(), \"user.role\")).to.eql(\"admin\"); });",
+              "pm.test(\"json tenant.name matches ^Tenant a \", function () { pm.expect(String(_.get(pm.response.json(), \"tenant.name\"))).to.match(new RegExp(\"^Tenant a \")); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sida}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "me"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I06 create assessment",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"json status equals draft\", function () { pm.expect(_.get(pm.response.json(), \"status\")).to.eql(\"draft\"); });",
+              "pm.collectionVariables.set(\"assessmentId\", _.get(pm.response.json(), \"id\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "sid={{sida}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Postman Assessment\", \"jobDescription\": \"skill0 skill1 skill2 skill3 skill4 skill5 skill6 skill7 skill8 skill9 skill10 skill11 skill12 skill13 skill14 skill15 skill16 skill17 skill18 skill19 skill20 skill21 skill22 skill23 skill24 skill25 skill26 skill27 skill28 skill29 skill30 skill31 skill32 skill33 skill34 skill35 skill36 skill37 skill38 skill39 skill40 skill41 skill42 skill43 skill44 skill45 skill46 skill47 skill48 skill49 skill50 skill51 skill52 skill53 skill54 skill55 skill56 skill57 skill58 skill59 skill60 skill61 skill62 skill63 skill64 skill65 skill66 skill67 skill68 skill69 skill70 skill71 skill72 skill73 skill74 skill75 skill76 skill77 skill78 skill79 skill80 skill81 skill82 skill83 skill84 skill85 skill86 skill87 skill88 skill89 skill90 skill91 skill92 skill93 skill94 skill95 skill96 skill97 skill98 skill99 skill100 skill101 skill102 skill103 skill104 skill105 skill106 skill107 skill108 skill109\", \"durationMinutes\": 30, \"passingScore\": 50, \"sections\": [{\"type\": \"mcq\", \"domain\": \"Python\", \"difficulty\": \"medium\", \"count\": 3}]}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "I07 tenant B cannot read tenant A's assessment",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 404\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"json error.code equals NOT_FOUND\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"NOT_FOUND\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sidb}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/{{assessmentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "{{assessmentId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I08 a malformed id is a validation error, not a 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 400\", function () { pm.response.to.have.status(400); });",
+              "pm.test(\"json error.code equals VALIDATION_ERROR\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"VALIDATION_ERROR\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sida}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/not-a-uuid",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "not-a-uuid"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I09 invalid section numbers are rejected before queueing",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 400\", function () { pm.response.to.have.status(400); });",
+              "pm.test(\"json error.code equals VALIDATION_ERROR\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"VALIDATION_ERROR\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "sid={{sida}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/{{assessmentId}}/generate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "{{assessmentId}}",
+            "generate"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"sectionIndexes\": [9]}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "I10 tenant B cannot start generation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 404\", function () { pm.response.to.have.status(404); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "sid={{sidb}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/{{assessmentId}}/generate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "{{assessmentId}}",
+            "generate"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "I11 start generation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 202\", function () { pm.response.to.have.status(202); });",
+              "pm.test(\"json status equals queued\", function () { pm.expect(_.get(pm.response.json(), \"status\")).to.eql(\"queued\"); });",
+              "pm.collectionVariables.set(\"jobId\", _.get(pm.response.json(), \"jobId\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "sid={{sida}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/{{assessmentId}}/generate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "{{assessmentId}}",
+            "generate"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "I11+ job finishes",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "var end = Date.now() + Number(pm.variables.get(\"waitSeconds\")) * 1000; while (Date.now() < end) {}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"json status equals done\", function () { pm.expect(_.get(pm.response.json(), \"status\")).to.eql(\"done\"); });",
+              "pm.test(\"json type equals generate\", function () { pm.expect(_.get(pm.response.json(), \"type\")).to.eql(\"generate\"); });",
+              "pm.test(\"json result.questionsCreated equals 3\", function () { pm.expect(_.get(pm.response.json(), \"result.questionsCreated\")).to.eql(3); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sida}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/jobs/{{jobId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "jobs",
+            "{{jobId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I13 tenant B cannot read the job",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 404\", function () { pm.response.to.have.status(404); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sidb}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/jobs/{{jobId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "jobs",
+            "{{jobId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I14 questions were created with answers for staff",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"json 0.source equals ai\", function () { pm.expect(_.get(pm.response.json(), \"0.source\")).to.eql(\"ai\"); });",
+              "pm.test(\"json 0.status equals draft\", function () { pm.expect(_.get(pm.response.json(), \"0.status\")).to.eql(\"draft\"); });",
+              "pm.test(\"json (root) has 3 items\", function () { pm.expect(pm.response.json()).to.have.lengthOf(3); });",
+              "pm.test(\"json 0.correctAnswer matches ^[A-D]$\", function () { pm.expect(String(_.get(pm.response.json(), \"0.correctAnswer\"))).to.match(new RegExp(\"^[A-D]$\")); });",
+              "pm.collectionVariables.set(\"questionId\", _.get(pm.response.json(), \"0.id\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sida}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/{{assessmentId}}/questions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "{{assessmentId}}",
+            "questions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I15 tenant B cannot list or edit them",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 404\", function () { pm.response.to.have.status(404); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "sid={{sidb}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/questions/{{questionId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "questions",
+            "{{questionId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"body\": \"hijack\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "I16 an invalid edit is rejected",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 400\", function () { pm.response.to.have.status(400); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "sid={{sida}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/questions/{{questionId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "questions",
+            "{{questionId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"options\": [\"only\", \"two\"]}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "I17 a valid edit is applied",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"json body equals Reviewed wording?\", function () { pm.expect(_.get(pm.response.json(), \"body\")).to.eql(\"Reviewed wording?\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "sid={{sida}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/questions/{{questionId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "questions",
+            "{{questionId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"body\": \"Reviewed wording?\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "I18 approving an unknown assessment is a 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 404\", function () { pm.response.to.have.status(404); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sida}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/00000000-0000-4000-8000-000000000000/approve",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "00000000-0000-4000-8000-000000000000",
+            "approve"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I19 approve",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"json status equals approved\", function () { pm.expect(_.get(pm.response.json(), \"status\")).to.eql(\"approved\"); });",
+              "pm.test(\"json questionCount equals 3\", function () { pm.expect(_.get(pm.response.json(), \"questionCount\")).to.eql(3); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sida}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/{{assessmentId}}/approve",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "{{assessmentId}}",
+            "approve"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I20 an approved assessment cannot be edited",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 409\", function () { pm.response.to.have.status(409); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "sid={{sida}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/questions/{{questionId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "questions",
+            "{{questionId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"body\": \"late\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "I21 an approved assessment cannot be regenerated",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 409\", function () { pm.response.to.have.status(409); });",
+              "pm.test(\"json error.code equals CONFLICT\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"CONFLICT\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "sid={{sida}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/{{assessmentId}}/generate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "{{assessmentId}}",
+            "generate"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "platformKey",
+      "value": "dev-only-platform-key-change-me-00000"
+    },
+    {
+      "key": "password",
+      "value": "correct-horse-9"
+    },
+    {
+      "key": "waitSeconds",
+      "value": "3"
+    },
+    {
+      "key": "runId",
+      "value": ""
+    }
+  ]
+}

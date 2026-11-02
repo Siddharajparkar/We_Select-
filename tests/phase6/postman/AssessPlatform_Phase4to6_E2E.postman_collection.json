@@ -1,0 +1,837 @@
+{
+  "info": {
+    "name": "AI Assessment Platform - Phases 4-6 - E2E",
+    "description": "Admin creates a tenant, adds a recruiter; the recruiter creates an assessment, generates and reviews questions (edit, regenerate, add own), approves, closes, and signs out.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "E01 health",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"json status equals ok\", function () { pm.expect(_.get(pm.response.json(), \"status\")).to.eql(\"ok\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E02 create tenant A",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set(\"runId\", pm.variables.replaceIn(\"{{$guid}}\"));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"json tenantId matches ^[0-9a-f-]{36}$\", function () { pm.expect(String(_.get(pm.response.json(), \"tenantId\"))).to.match(new RegExp(\"^[0-9a-f-]{36}$\")); });",
+              "pm.collectionVariables.set(\"tenantIda\", _.get(pm.response.json(), \"tenantId\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Platform-Key",
+            "value": "{{platformKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/platform/tenants",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "platform",
+            "tenants"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\": \"Tenant a {{runId}}\", \"adminName\": \"Admin a\", \"adminEmail\": \"a-{{runId}}@p46.example\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "E03 login A",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"header set-cookie matches sid=[^;]+;.*HttpOnly\", function () { pm.expect(pm.response.headers.get(\"set-cookie\") || '').to.match(new RegExp(\"sid=[^;]+;.*HttpOnly\", 'i')); });",
+              "pm.collectionVariables.set(\"sida\", ((new RegExp(\"sid=([^;]+)\")).exec(pm.response.headers.get(\"set-cookie\") || '') || [])[1] || '');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"a-{{runId}}@p46.example\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "E04 admin adds a recruiter",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"json id matches ^[0-9a-f-]{36}$\", function () { pm.expect(String(_.get(pm.response.json(), \"id\"))).to.match(new RegExp(\"^[0-9a-f-]{36}$\")); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "sid={{sida}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\": \"Rita Recruiter\", \"email\": \"rita-{{runId}}@p46.example\", \"role\": \"recruiter\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "E05 login R",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"header set-cookie matches sid=[^;]+;.*HttpOnly\", function () { pm.expect(pm.response.headers.get(\"set-cookie\") || '').to.match(new RegExp(\"sid=[^;]+;.*HttpOnly\", 'i')); });",
+              "pm.collectionVariables.set(\"sidr\", ((new RegExp(\"sid=([^;]+)\")).exec(pm.response.headers.get(\"set-cookie\") || '') || [])[1] || '');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"rita-{{runId}}@p46.example\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "E06 create assessment",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"json status equals draft\", function () { pm.expect(_.get(pm.response.json(), \"status\")).to.eql(\"draft\"); });",
+              "pm.collectionVariables.set(\"assessmentId\", _.get(pm.response.json(), \"id\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "sid={{sidr}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Postman Assessment\", \"jobDescription\": \"skill0 skill1 skill2 skill3 skill4 skill5 skill6 skill7 skill8 skill9 skill10 skill11 skill12 skill13 skill14 skill15 skill16 skill17 skill18 skill19 skill20 skill21 skill22 skill23 skill24 skill25 skill26 skill27 skill28 skill29 skill30 skill31 skill32 skill33 skill34 skill35 skill36 skill37 skill38 skill39 skill40 skill41 skill42 skill43 skill44 skill45 skill46 skill47 skill48 skill49 skill50 skill51 skill52 skill53 skill54 skill55 skill56 skill57 skill58 skill59 skill60 skill61 skill62 skill63 skill64 skill65 skill66 skill67 skill68 skill69 skill70 skill71 skill72 skill73 skill74 skill75 skill76 skill77 skill78 skill79 skill80 skill81 skill82 skill83 skill84 skill85 skill86 skill87 skill88 skill89 skill90 skill91 skill92 skill93 skill94 skill95 skill96 skill97 skill98 skill99 skill100 skill101 skill102 skill103 skill104 skill105 skill106 skill107 skill108 skill109\", \"durationMinutes\": 30, \"passingScore\": 50, \"sections\": [{\"type\": \"mcq\", \"domain\": \"Python\", \"difficulty\": \"medium\", \"count\": 3}]}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "E07 start generation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 202\", function () { pm.response.to.have.status(202); });",
+              "pm.test(\"json status equals queued\", function () { pm.expect(_.get(pm.response.json(), \"status\")).to.eql(\"queued\"); });",
+              "pm.collectionVariables.set(\"jobId\", _.get(pm.response.json(), \"jobId\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "sid={{sidr}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/{{assessmentId}}/generate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "{{assessmentId}}",
+            "generate"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "E07+ job finishes",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "var end = Date.now() + Number(pm.variables.get(\"waitSeconds\")) * 1000; while (Date.now() < end) {}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"json status equals done\", function () { pm.expect(_.get(pm.response.json(), \"status\")).to.eql(\"done\"); });",
+              "pm.test(\"json type equals generate\", function () { pm.expect(_.get(pm.response.json(), \"type\")).to.eql(\"generate\"); });",
+              "pm.test(\"json result.questionsCreated equals 3\", function () { pm.expect(_.get(pm.response.json(), \"result.questionsCreated\")).to.eql(3); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sidr}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/jobs/{{jobId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "jobs",
+            "{{jobId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E09 review: list questions",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"json (root) has 3 items\", function () { pm.expect(pm.response.json()).to.have.lengthOf(3); });",
+              "pm.collectionVariables.set(\"q0\", _.get(pm.response.json(), \"0.id\"));",
+              "pm.collectionVariables.set(\"q1\", _.get(pm.response.json(), \"1.id\"));",
+              "pm.collectionVariables.set(\"q2\", _.get(pm.response.json(), \"2.id\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sidr}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/{{assessmentId}}/questions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "{{assessmentId}}",
+            "questions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E10 review: delete one question",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 204\", function () { pm.response.to.have.status(204); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sidr}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/questions/{{q2}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "questions",
+            "{{q2}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E11 approval is refused while a section is short",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 409\", function () { pm.response.to.have.status(409); });",
+              "pm.test(\"json error.code equals SECTION_INCOMPLETE\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"SECTION_INCOMPLETE\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sidr}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/{{assessmentId}}/approve",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "{{assessmentId}}",
+            "approve"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E12 review: add an own question",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"json source equals custom\", function () { pm.expect(_.get(pm.response.json(), \"source\")).to.eql(\"custom\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "sid={{sidr}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/{{assessmentId}}/questions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "{{assessmentId}}",
+            "questions"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"sectionIndex\": 0, \"type\": \"mcq\", \"body\": \"Which keyword defines a function?\", \"options\": [\"def\", \"fun\", \"func\", \"lambda\"], \"correctAnswer\": \"A\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "E13 review: regenerate an AI question",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 202\", function () { pm.response.to.have.status(202); });",
+              "pm.collectionVariables.set(\"jobId2\", _.get(pm.response.json(), \"jobId\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sidr}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/questions/{{q1}}/regenerate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "questions",
+            "{{q1}}",
+            "regenerate"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E14 regeneration finishes",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "var end = Date.now() + Number(pm.variables.get(\"waitSeconds\")) * 1000; while (Date.now() < end) {}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"json status equals done\", function () { pm.expect(_.get(pm.response.json(), \"status\")).to.eql(\"done\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sidr}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/jobs/{{jobId2}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "jobs",
+            "{{jobId2}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E15 approve",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"json status equals approved\", function () { pm.expect(_.get(pm.response.json(), \"status\")).to.eql(\"approved\"); });",
+              "pm.test(\"json questionCount equals 3\", function () { pm.expect(_.get(pm.response.json(), \"questionCount\")).to.eql(3); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sidr}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/{{assessmentId}}/approve",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "{{assessmentId}}",
+            "approve"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E16 the approved assessment shows up approved",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"json 0.status equals approved\", function () { pm.expect(_.get(pm.response.json(), \"0.status\")).to.eql(\"approved\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sidr}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments?status=approved",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "approved"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "E17 close",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"json status equals closed\", function () { pm.expect(_.get(pm.response.json(), \"status\")).to.eql(\"closed\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sidr}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/{{assessmentId}}/close",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "{{assessmentId}}",
+            "close"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E18 sign out",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 204\", function () { pm.response.to.have.status(204); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sidr}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/logout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "logout"
+          ]
+        }
+      }
+    },
+    {
+      "name": "E19 the old session no longer works",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "sid={{sidr}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "me"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "platformKey",
+      "value": "dev-only-platform-key-change-me-00000"
+    },
+    {
+      "key": "password",
+      "value": "correct-horse-9"
+    },
+    {
+      "key": "waitSeconds",
+      "value": "3"
+    },
+    {
+      "key": "runId",
+      "value": ""
+    }
+  ]
+}
