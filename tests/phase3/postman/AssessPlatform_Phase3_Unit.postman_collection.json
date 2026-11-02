@@ -1,0 +1,394 @@
+{
+  "info": {
+    "name": "AI Assessment Platform - Phase 3 - UNIT",
+    "description": "Single-request contract checks of the Phase 0-3 API skeleton: health body, headers, error envelope, request-id handling, body limit. Each request is independent.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "U01 health returns the exact contract body",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"body text is exact\", function () { pm.expect(pm.response.text()).to.eql(\"{\\\"status\\\":\\\"ok\\\"}\"); });",
+              "pm.test(\"body JSON is exact\", function () { pm.expect(pm.response.json()).to.eql({\"status\": \"ok\"}); });",
+              "pm.test(\"header content-type matches ^application/json\", function () { pm.expect(pm.response.headers.get(\"content-type\") || '').to.match(new RegExp(\"^application/json\", 'i')); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U02 health reports the app version header",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"header x-app-version is present\", function () { pm.response.to.have.header(\"x-app-version\"); });",
+              "pm.test(\"header x-app-version matches ^[A-Za-z0-9._\\\\-]{1,64}$\", function () { pm.expect(pm.response.headers.get(\"x-app-version\") || '').to.match(new RegExp(\"^[A-Za-z0-9._\\\\-]{1,64}$\", 'i')); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U03 health is never cached",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"header cache-control equals no-store\", function () { pm.expect(pm.response.headers.get(\"cache-control\")).to.eql(\"no-store\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U04 security headers are present",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"header x-content-type-options equals nosniff\", function () { pm.expect(pm.response.headers.get(\"x-content-type-options\")).to.eql(\"nosniff\"); });",
+              "pm.test(\"header x-frame-options equals DENY\", function () { pm.expect(pm.response.headers.get(\"x-frame-options\")).to.eql(\"DENY\"); });",
+              "pm.test(\"header referrer-policy equals no-referrer\", function () { pm.expect(pm.response.headers.get(\"referrer-policy\")).to.eql(\"no-referrer\"); });",
+              "pm.test(\"header strict-transport-security is present\", function () { pm.response.to.have.header(\"strict-transport-security\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U05 unknown route returns the 404 error envelope",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 404\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"body JSON is exact\", function () { pm.expect(pm.response.json()).to.eql({\"error\": {\"code\": \"NOT_FOUND\", \"message\": \"Route not found\"}}); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/does-not-exist",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "does-not-exist"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U06 wrong method returns the 405 error envelope",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 405\", function () { pm.response.to.have.status(405); });",
+              "pm.test(\"json error.code equals METHOD_NOT_ALLOWED\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"METHOD_NOT_ALLOWED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U07 a valid x-request-id is echoed",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"header x-request-id equals unit-trace-123\", function () { pm.expect(pm.response.headers.get(\"x-request-id\")).to.eql(\"unit-trace-123\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-request-id",
+            "value": "unit-trace-123"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U08 a request id is generated when absent",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"header x-request-id matches ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$\", function () { pm.expect(pm.response.headers.get(\"x-request-id\") || '').to.match(new RegExp(\"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$\", 'i')); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U09 an unsafe x-request-id is replaced",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"header x-request-id matches ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$\", function () { pm.expect(pm.response.headers.get(\"x-request-id\") || '').to.match(new RegExp(\"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$\", 'i')); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-request-id",
+            "value": "bad id;with spaces"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U10 bodies over 1 MB are rejected with 413",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('bigBody', \"x\".repeat(1100000));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 413\", function () { pm.response.to.have.status(413); });",
+              "pm.test(\"json error.code equals PAYLOAD_TOO_LARGE\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"PAYLOAD_TOO_LARGE\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "text/plain"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{{bigBody}}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "U11 error bodies are JSON, not HTML",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 404\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"body does not contain '<html'\", function () { pm.expect(pm.response.text()).to.not.include(\"<html\"); });",
+              "pm.test(\"body does not contain 'Traceback'\", function () { pm.expect(pm.response.text()).to.not.include(\"Traceback\"); });",
+              "pm.test(\"header content-type matches ^application/json\", function () { pm.expect(pm.response.headers.get(\"content-type\") || '').to.match(new RegExp(\"^application/json\", 'i')); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/nope",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "nope"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "expectedVersion",
+      "value": ""
+    },
+    {
+      "key": "docsStatus",
+      "value": "200"
+    }
+  ]
+}

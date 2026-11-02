@@ -1,0 +1,620 @@
+{
+  "info": {
+    "name": "AI Assessment Platform - Phases 4-6 - UNIT",
+    "description": "Single-request contract checks for auth, tenants, assessments and generation that need no state: the authentication wall, validation errors and the platform key.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "U01 GET /auth/me needs a session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"json error.code equals UNAUTHENTICATED\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"UNAUTHENTICATED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "me"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U02 GET /users needs a session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"json error.code equals UNAUTHENTICATED\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"UNAUTHENTICATED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U03 GET /assessments needs a session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"json error.code equals UNAUTHENTICATED\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"UNAUTHENTICATED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U04 POST /assessments needs a session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"json error.code equals UNAUTHENTICATED\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"UNAUTHENTICATED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U05 GET /assessments/00000000-0000-4000-8000-000000000000 needs a session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"json error.code equals UNAUTHENTICATED\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"UNAUTHENTICATED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/00000000-0000-4000-8000-000000000000",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "00000000-0000-4000-8000-000000000000"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U06 POST /assessments/00000000-0000-4000-8000-000000000000/generate needs a session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"json error.code equals UNAUTHENTICATED\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"UNAUTHENTICATED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/00000000-0000-4000-8000-000000000000/generate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "00000000-0000-4000-8000-000000000000",
+            "generate"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U07 POST /assessments/00000000-0000-4000-8000-000000000000/approve needs a session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"json error.code equals UNAUTHENTICATED\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"UNAUTHENTICATED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/00000000-0000-4000-8000-000000000000/approve",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "00000000-0000-4000-8000-000000000000",
+            "approve"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U08 GET /assessments/00000000-0000-4000-8000-000000000000/questions needs a session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"json error.code equals UNAUTHENTICATED\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"UNAUTHENTICATED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/assessments/00000000-0000-4000-8000-000000000000/questions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "assessments",
+            "00000000-0000-4000-8000-000000000000",
+            "questions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U09 GET /jobs/00000000-0000-4000-8000-000000000000 needs a session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"json error.code equals UNAUTHENTICATED\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"UNAUTHENTICATED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/jobs/00000000-0000-4000-8000-000000000000",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "jobs",
+            "00000000-0000-4000-8000-000000000000"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U10 PATCH /questions/00000000-0000-4000-8000-000000000000 needs a session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"json error.code equals UNAUTHENTICATED\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"UNAUTHENTICATED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/questions/00000000-0000-4000-8000-000000000000",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "questions",
+            "00000000-0000-4000-8000-000000000000"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U11 DELETE /questions/00000000-0000-4000-8000-000000000000 needs a session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"json error.code equals UNAUTHENTICATED\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"UNAUTHENTICATED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/questions/00000000-0000-4000-8000-000000000000",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "questions",
+            "00000000-0000-4000-8000-000000000000"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U12 POST /questions/00000000-0000-4000-8000-000000000000/regenerate needs a session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"json error.code equals UNAUTHENTICATED\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"UNAUTHENTICATED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/questions/00000000-0000-4000-8000-000000000000/regenerate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "questions",
+            "00000000-0000-4000-8000-000000000000",
+            "regenerate"
+          ]
+        }
+      }
+    },
+    {
+      "name": "U13 login with an empty body is a validation error",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 400\", function () { pm.response.to.have.status(400); });",
+              "pm.test(\"json error.code equals VALIDATION_ERROR\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"VALIDATION_ERROR\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "U14 login with an unknown account gives the generic 401",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"json error.code equals INVALID_CREDENTIALS\", function () { pm.expect(_.get(pm.response.json(), \"error.code\")).to.eql(\"INVALID_CREDENTIALS\"); });",
+              "pm.test(\"body does not contain 'nobody'\", function () { pm.expect(pm.response.text()).to.not.include(\"nobody\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"nobody@p46.example\", \"password\": \"whatever-123\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "U15 creating a tenant without the platform key is refused",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/platform/tenants",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "platform",
+            "tenants"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\": \"X\", \"adminName\": \"A\", \"adminEmail\": \"x@p46.example\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "U16 creating a tenant with a wrong platform key is refused",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"body does not contain 'wrong-key'\", function () { pm.expect(pm.response.text()).to.not.include(\"wrong-key\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Platform-Key",
+            "value": "wrong-key"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/platform/tenants",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "platform",
+            "tenants"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\": \"X\", \"adminName\": \"A\", \"adminEmail\": \"x@p46.example\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "U17 responses carry the version and request id",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"header x-app-version is present\", function () { pm.response.to.have.header(\"x-app-version\"); });",
+              "pm.test(\"header x-request-id is present\", function () { pm.response.to.have.header(\"x-request-id\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "me"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "platformKey",
+      "value": "dev-only-platform-key-change-me-00000"
+    },
+    {
+      "key": "password",
+      "value": "correct-horse-9"
+    },
+    {
+      "key": "waitSeconds",
+      "value": "3"
+    },
+    {
+      "key": "runId",
+      "value": ""
+    }
+  ]
+}

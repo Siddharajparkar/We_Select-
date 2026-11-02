@@ -1,0 +1,58 @@
+# infra/azure/assess-api.containerapp.yaml — desired runtime shape of the assess-api Container App.
+# UNVERIFIED (ledger AZ-020): applied with `az containerapp update --yaml`; field semantics are
+# confirmed only at office checkpoint OC-1F. Placeholders only: never put real names or secrets here.
+# Secrets are referenced by name (secretRef); their values are set by a human in the portal.
+properties:
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      external: true
+      targetPort: 8080
+      transport: auto
+      allowInsecure: false
+  template:
+    terminationGracePeriodSeconds: 30
+    scale:
+      minReplicas: 1
+      maxReplicas: 1
+    containers:
+      - name: assess-api
+        image: <ACR>.azurecr.io/assess-api:<GIT_SHA>
+        resources:
+          cpu: 0.25
+          memory: 0.5Gi
+        env:
+          - { name: APP_ENV, value: production }
+          - { name: PORT, value: "8080" }
+          - { name: REPO_BACKEND, value: sql }
+          - { name: DB_SCHEMA, value: assess }
+          - { name: AI_MODE, value: azure }
+          - { name: EMAIL_MODE, value: azure }
+          - { name: FILES_MODE, value: azure }
+          - { name: FOUNDRY_API_STYLE, value: v1 }
+          - { name: FOUNDRY_DEPLOYMENT, value: gpt-4o }
+          - { name: DATABASE_URL, secretRef: database-url }
+          - { name: SESSION_SECRET, secretRef: session-secret }
+          - { name: PLATFORM_KEY, secretRef: platform-key }
+          - { name: FOUNDRY_ENDPOINT, secretRef: foundry-endpoint }
+          - { name: FOUNDRY_KEY, secretRef: foundry-key }
+          - { name: ACS_CONNECTION_STRING, secretRef: acs-connection-string }
+          - { name: ACS_SENDER, secretRef: acs-sender }
+          - { name: BLOB_CONNECTION_STRING, secretRef: blob-connection-string }
+          - { name: APPLICATIONINSIGHTS_CONNECTION_STRING, secretRef: appinsights-connection-string }
+        probes:
+          - type: Startup
+            httpGet: { path: /api/v1/health, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12   # 60 s for migrations + ODBC warm-up
+          - type: Readiness
+            httpGet: { path: /api/v1/health, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          - type: Liveness
+            httpGet: { path: /api/v1/health, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3

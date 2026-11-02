@@ -1,0 +1,432 @@
+{
+  "info": {
+    "name": "AI Assessment Platform - Phase 3 - INTEGRATION",
+    "description": "Phases 0-3 working together over HTTP: the same version and request-id behaviour on success and error paths, no leakage, stable service under repeated and abusive calls. Requests run in order and share variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "I01 capture version and request id from health",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"header x-app-version is present\", function () { pm.response.to.have.header(\"x-app-version\"); });",
+              "pm.test(\"header x-request-id is present\", function () { pm.response.to.have.header(\"x-request-id\"); });",
+              "pm.collectionVariables.set(\"version\", pm.response.headers.get(\"x-app-version\"));",
+              "pm.collectionVariables.set(\"firstRequestId\", pm.response.headers.get(\"x-request-id\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I02 second request gets a different generated id",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"header x-app-version equals {{version}}\", function () { pm.expect(pm.response.headers.get(\"x-app-version\")).to.eql(pm.variables.replaceIn(\"{{version}}\")); });",
+              "pm.test(\"header x-request-id differs from {{firstRequestId}}\", function () { pm.expect(pm.response.headers.get(\"x-request-id\")).to.not.eql(pm.variables.replaceIn(\"{{firstRequestId}}\")); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I03 version header is identical on a 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 404\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"header x-app-version equals {{version}}\", function () { pm.expect(pm.response.headers.get(\"x-app-version\")).to.eql(pm.variables.replaceIn(\"{{version}}\")); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/missing",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "missing"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I04 version header is identical on a 405",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 405\", function () { pm.response.to.have.status(405); });",
+              "pm.test(\"header x-app-version equals {{version}}\", function () { pm.expect(pm.response.headers.get(\"x-app-version\")).to.eql(pm.variables.replaceIn(\"{{version}}\")); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I05 version header is identical on a 413",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('bigBody', \"y\".repeat(1100000));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 413\", function () { pm.response.to.have.status(413); });",
+              "pm.test(\"header x-app-version equals {{version}}\", function () { pm.expect(pm.response.headers.get(\"x-app-version\")).to.eql(pm.variables.replaceIn(\"{{version}}\")); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "text/plain"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{{bigBody}}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "I06 the same request id flows through an error path",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 404\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"header x-request-id equals integration-trace-777\", function () { pm.expect(pm.response.headers.get(\"x-request-id\")).to.eql(\"integration-trace-777\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-request-id",
+            "value": "integration-trace-777"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/missing",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "missing"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I07 error responses keep the security headers",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 404\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"header x-content-type-options equals nosniff\", function () { pm.expect(pm.response.headers.get(\"x-content-type-options\")).to.eql(\"nosniff\"); });",
+              "pm.test(\"header x-frame-options equals DENY\", function () { pm.expect(pm.response.headers.get(\"x-frame-options\")).to.eql(\"DENY\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/missing",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "missing"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I08 errors never leak internals",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 404\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"body does not contain 'Traceback'\", function () { pm.expect(pm.response.text()).to.not.include(\"Traceback\"); });",
+              "pm.test(\"body does not contain 'SELECT'\", function () { pm.expect(pm.response.text()).to.not.include(\"SELECT\"); });",
+              "pm.test(\"body does not contain 'sqlalchemy'\", function () { pm.expect(pm.response.text()).to.not.include(\"sqlalchemy\"); });",
+              "pm.test(\"body does not contain 'pyodbc'\", function () { pm.expect(pm.response.text()).to.not.include(\"pyodbc\"); });",
+              "pm.test(\"body does not contain 'File \\\"'\", function () { pm.expect(pm.response.text()).to.not.include(\"File \\\"\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/missing",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "missing"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I09 query strings are ignored and never reflected",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"body JSON is exact\", function () { pm.expect(pm.response.json()).to.eql({\"status\": \"ok\"}); });",
+              "pm.test(\"body does not contain 'SUPERSECRET'\", function () { pm.expect(pm.response.text()).to.not.include(\"SUPERSECRET\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health?token=SUPERSECRET&x=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ],
+          "query": [
+            {
+              "key": "token",
+              "value": "SUPERSECRET"
+            },
+            {
+              "key": "x",
+              "value": "1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "I10 service still healthy after the abusive calls above",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"body JSON is exact\", function () { pm.expect(pm.response.json()).to.eql({\"status\": \"ok\"}); });",
+              "pm.test(\"header x-app-version equals {{version}}\", function () { pm.expect(pm.response.headers.get(\"x-app-version\")).to.eql(pm.variables.replaceIn(\"{{version}}\")); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I11 repeated health calls are idempotent (1/2)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"body text is exact\", function () { pm.expect(pm.response.text()).to.eql(\"{\\\"status\\\":\\\"ok\\\"}\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "I12 repeated health calls are idempotent (2/2)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"body text is exact\", function () { pm.expect(pm.response.text()).to.eql(\"{\\\"status\\\":\\\"ok\\\"}\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "expectedVersion",
+      "value": ""
+    },
+    {
+      "key": "docsStatus",
+      "value": "200"
+    }
+  ]
+}

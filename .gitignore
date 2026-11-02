@@ -1,0 +1,29 @@
+coverage
+.env
+.env.*
+!.env.example
+.azure-local/
+*.pem
+*.pfx
+*.log
+
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+
+# Front-end tooling output (the front end itself is not part of this repository content)
+node_modules/
+.next/
+dist/
+build/
+out/

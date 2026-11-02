@@ -1,0 +1,11 @@
+[project]
+name = "assess-api"
+version = "1.0.0"
+description = "AI Candidate Assessment Platform - API (FastAPI)"
+requires-python = ">=3.11"
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = false
