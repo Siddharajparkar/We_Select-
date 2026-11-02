@@ -241,7 +241,8 @@ def test_upload_txt_sets_text_and_file_name(tenant_a: Account, files: MemoryFile
 def test_upload_pdf_extracts_text(tenant_a: Account, files: MemoryFilesProvider) -> None:
     aid = make(tenant_a)
     r = upload(tenant_a, aid, "Job Spec.pdf", make_pdf(JD_TEXT), "application/pdf")
-    assert r.status_code == 200 and "FastAPI" in r.json()["jobDescription"]
+    assert r.status_code == 200, r.text
+    assert "FastAPI" in r.json()["jobDescription"]
     assert f"{tenant_a.tenant_id}/{aid}/Job Spec.pdf" in files.store
 
 

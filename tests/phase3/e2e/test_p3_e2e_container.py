@@ -130,6 +130,7 @@ def test_container_refuses_fakes_in_production_mode() -> None:
     try:
         time.sleep(8)
         assert docker("inspect", "-f", "{{.State.Running}}", name).stdout.strip() == "false"
-        assert "must be 'azure' in production" in docker("logs", name, check=False).stdout
+        logs = docker("logs", name, check=False)
+        assert "must be 'azure' in production" in logs.stdout + logs.stderr
     finally:
         docker("rm", "-f", name, check=False)
