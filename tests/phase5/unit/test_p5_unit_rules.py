@@ -173,6 +173,10 @@ def test_extract_pdf_text() -> None:
     assert "FastAPI" in text and text.startswith("Senior Backend Engineer")
 
 
+def test_pdf_extraction_timeout_matches_spec() -> None:
+    assert jd_files.PDF_TIMEOUT_SECONDS == 10
+
+
 def test_extract_normalises_whitespace() -> None:
     assert jd_files.extract_text("txt", b"  Hello \t  world  \r\n\r\n\r\n\r\n  next   line is long enough ") == (
         "Hello world\n\nnext line is long enough"

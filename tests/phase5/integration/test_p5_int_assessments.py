@@ -6,6 +6,7 @@ import pytest
 
 from app.providers.files_memory import MemoryFilesProvider
 from app.repositories import Repositories
+from app.services import jd_files
 from conftest import API, Account
 from helpers_pdf import JD_TEXT, make_pdf
 
@@ -238,7 +239,10 @@ def test_upload_txt_sets_text_and_file_name(tenant_a: Account, files: MemoryFile
     )
 
 
-def test_upload_pdf_extracts_text(tenant_a: Account, files: MemoryFilesProvider) -> None:
+def test_upload_pdf_extracts_text(
+    tenant_a: Account, files: MemoryFilesProvider, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(jd_files, "PDF_TIMEOUT_SECONDS", 30)
     aid = make(tenant_a)
     r = upload(tenant_a, aid, "Job Spec.pdf", make_pdf(JD_TEXT), "application/pdf")
     assert r.status_code == 200, r.text
