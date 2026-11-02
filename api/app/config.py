@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""
 
     # Secrets
-    SESSION_SECRET: str = "dev-only-session-secret-change-me-0000"
+    SESSION_SECRET: str = "dev-only-session-secret-change-me-0000"  # noqa: S105
     PLATFORM_KEY: str = "dev-only-platform-key-change-me-00000"
 
     # Auth

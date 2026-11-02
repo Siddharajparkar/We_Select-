@@ -48,9 +48,9 @@ def test_installs_sql_server_odbc_driver_18_in_runtime_stage() -> None:
 
 def test_app_directory_including_sql_migrations_is_copied() -> None:
     assert re.search(r"^COPY app \./app$", DOCKERFILE, re.M)
-    assert list(
-        (API / "app" / "migrations" / "sql").glob("*.sql")
-    ), "SQL migration files must exist in the image context"
+    assert list((API / "app" / "migrations" / "sql").glob("*.sql")), (
+        "SQL migration files must exist in the image context"
+    )
 
 
 def test_dockerfile_contains_no_secrets_or_latest_tags() -> None:
@@ -91,6 +91,6 @@ def test_env_example_is_safe_and_matches_settings() -> None:
     names = set(re.findall(r"^([A-Z][A-Z0-9_]+)=", text, re.M))
     assert names <= set(Settings.model_fields), f"unknown vars in .env.example: {names - set(Settings.model_fields)}"
     assert "REPO_BACKEND=memory" in text and "AI_MODE=fake" in text and "EMAIL_MODE=fake" in text
-    assert not re.search(
-        r"(AccountKey|Password)=(?!<|\s|$)[^\s;]{6,}", text.replace("<SET_LOCALLY>", "")
-    ), "no real secrets"
+    assert not re.search(r"(AccountKey|Password)=(?!<|\s|$)[^\s;]{6,}", text.replace("<SET_LOCALLY>", "")), (
+        "no real secrets"
+    )

@@ -31,9 +31,9 @@ def test_routes_never_read_a_tenant_id_from_the_request(path: Path) -> None:
             owner = node.value.id if isinstance(node.value, ast.Name) else ""
             assert owner not in REQUEST_LIKE, f"{path.name}: {owner}.{node.attr} reads a tenant id from the request"
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
-            assert (
-                node.value.lower() not in FORBIDDEN_PARAMS or path.name == "platform.py"
-            ), f"{path.name}: literal {node.value!r} (query/body key?)"
+            assert node.value.lower() not in FORBIDDEN_PARAMS or path.name == "platform.py", (
+                f"{path.name}: literal {node.value!r} (query/body key?)"
+            )
 
 
 def test_every_staff_route_depends_on_auth() -> None:
@@ -53,9 +53,9 @@ def test_every_staff_route_depends_on_auth() -> None:
             annotations = " ".join(
                 ast.unparse(a.annotation) for a in node.args.args + node.args.kwonlyargs if a.annotation
             )
-            assert any(
-                k in annotations for k in ("Auth", "Staff", "Admin")
-            ), f"{path.name}:{node.name} has no auth dependency"
+            assert any(k in annotations for k in ("Auth", "Staff", "Admin")), (
+                f"{path.name}:{node.name} has no auth dependency"
+            )
 
 
 # ── seed tool ───────────────────────────────────────────────────────────────────────────────

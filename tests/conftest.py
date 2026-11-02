@@ -27,7 +27,8 @@ if str(API_DIR) not in sys.path:
 
 # Filter out broken meta_path finders from external broken editable packages in site-packages
 sys.meta_path = [
-    finder for finder in sys.meta_path
+    finder
+    for finder in sys.meta_path
     if "obliq_gst_backend" not in type(finder).__name__ and "obliq" not in getattr(finder, "__module__", "")
 ]
 

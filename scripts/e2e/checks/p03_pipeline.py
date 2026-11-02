@@ -15,9 +15,9 @@ def version_matches_expected_when_given(ctx):  # type: ignore[no-untyped-def]
     if not ctx.expected_version:
         return  # not asserted locally; the pipeline passes the commit SHA
     v = ctx.get("/api/v1/health").headers.get("x-app-version")
-    assert (
-        v == ctx.expected_version
-    ), f"serving {v!r}, expected {ctx.expected_version!r} (old revision still answering?)"
+    assert v == ctx.expected_version, (
+        f"serving {v!r}, expected {ctx.expected_version!r} (old revision still answering?)"
+    )
 
 
 def request_id_is_echoed(ctx):  # type: ignore[no-untyped-def]

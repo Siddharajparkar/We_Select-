@@ -9,7 +9,7 @@ from app.tools import probe
 BASE_ENV = {
     "APP_ENV": "test", "REPO_BACKEND": "memory", "FILES_MODE": "memory", "AI_MODE": "fake", "EMAIL_MODE": "fake",
     "DATABASE_URL": "Server=localhost;Database=test;User ID=sa;Password=x;",
-    "SESSION_SECRET": "test-secret-at-least-32-chars-long-x", "PLATFORM_KEY": "test-platform-at-least-32-chars-long-x",
+    "SESSION_SECRET": "x" * 40, "PLATFORM_KEY": "y" * 40,
     "BLOB_CONNECTION_STRING": "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=ZmFrZQ==;",
     "BLOB_CONTAINER": "jd-files", "APP_BASE_URL": "http://localhost:8080", "API_INTERNAL_URL": "http://localhost:8080",
 }  # fmt: skip
@@ -47,7 +47,7 @@ def test_config_probe_requires_acs_vars_in_azure_email_mode() -> None:
 def test_config_probe_output_never_prints_values(capsys: pytest.CaptureFixture[str]) -> None:
     probe.probe_config(BASE_ENV)
     out = capsys.readouterr().out
-    assert "present" in out and "test-secret-at-least" not in out and "ZmFrZQ" not in out
+    assert "present" in out and "x" * 40 not in out and "y" * 40 not in out and "ZmFrZQ" not in out
 
 
 @pytest.mark.parametrize(

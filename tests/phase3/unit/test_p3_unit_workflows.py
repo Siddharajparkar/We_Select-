@@ -54,9 +54,9 @@ def test_workflows_default_to_read_only_token(name: str) -> None:
     wf = load(name)
     top = wf.get("permissions")
     job_perms = [j.get("permissions") for j in wf["jobs"].values()]
-    assert top == {"contents": "read"} or all(
-        p is not None for p in job_perms
-    ), f"{name}: set least-privilege permissions"
+    assert top == {"contents": "read"} or all(p is not None for p in job_perms), (
+        f"{name}: set least-privilege permissions"
+    )
 
 
 def test_deploy_triggers_cover_branches_prs_and_manual() -> None:
@@ -98,9 +98,9 @@ def test_container_job_uses_sql_server_2022_azurite_and_masks_secrets() -> None:
     assert "prepare_sql.py" in text and "app.migrations.runner" in text and "(none pending)" in text
     assert "docker build" in text and "--build-arg GIT_SHA" in text
     assert any("trivy-action" in s.get("uses", "") for s in steps(job))
-    assert not re.search(
-        r"MSSQL_SA_PASSWORD=[A-Za-z0-9!]{6,}", (WF / "deploy.yml").read_text()
-    ), "no committed SA password"
+    assert not re.search(r"MSSQL_SA_PASSWORD=[A-Za-z0-9!]{6,}", (WF / "deploy.yml").read_text()), (
+        "no committed SA password"
+    )
 
 
 def test_security_job_scans_secrets_and_dependencies() -> None:
