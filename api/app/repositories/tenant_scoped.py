@@ -14,7 +14,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import Connection, case, delete, func, insert, select, update
+from sqlalchemy import Connection, case, delete, false, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
 from ..core.ids import new_id
@@ -235,7 +235,7 @@ class LoginAttemptsRepo:
                 lambda cn: cn.execute(
                     select(func.count())
                     .select_from(t)
-                    .where(t.c.email == norm_email(email), t.c.success.is_(False), t.c.attempted_at >= since)
+                    .where(t.c.email == norm_email(email), t.c.success == false(), t.c.attempted_at >= since)
                 ).scalar_one()
             )
         )
@@ -248,7 +248,7 @@ class LoginAttemptsRepo:
         def go(cn: Connection) -> tuple[int, datetime | None]:
             n, last = cn.execute(
                 select(func.count(), func.max(t.c.attempted_at)).where(
-                    t.c.email == e, t.c.success.is_(False), t.c.attempted_at > since
+                    t.c.email == e, t.c.success == false(), t.c.attempted_at > since
                 )
             ).one()
             return int(n), last
@@ -258,7 +258,7 @@ class LoginAttemptsRepo:
     def clear_failures(self, email: str) -> None:
         """A successful login clears that email's failure window (Prompt A 4.3)."""
         t = self.c.t["login_attempts"]
-        self.c.x.run(lambda cn: cn.execute(delete(t).where(t.c.email == norm_email(email), t.c.success.is_(False))))
+        self.c.x.run(lambda cn: cn.execute(delete(t).where(t.c.email == norm_email(email), t.c.success == false())))
 
 
 # ── Assessments ─────────────────────────────────────────────────────────────────────────────
