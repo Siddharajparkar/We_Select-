@@ -67,9 +67,10 @@ def test_spec_passes_against_the_in_process_app(key: str, tmp_path: Path) -> Non
     """Run each collection through the Python runner against a real local server."""
     import httpx
 
-    from conftest import start_server, wait_ready
+    from conftest import drain_output, start_server, wait_ready
 
     proc, base = start_server({"JOB_TICK_SECONDS": "0.2"})
+    drain_output(proc)  # an unread pipe fills (small on Windows) and blocks the server mid-run
     try:
         wait_ready(base, proc)
         rep = run46.run(key, base, {"waitSeconds": "1.5"}, httpx.Client(timeout=30.0))

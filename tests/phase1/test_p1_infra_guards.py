@@ -16,7 +16,8 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 INFRA = REPO / "infra" / "azure"
-BASH_AVAILABLE = shutil.which("bash") is not None
+from helpers_bash import BASH, BASH_AVAILABLE
+
 SCRIPTS = [
     "10-core.sh",
     "20-sql.sh",
@@ -103,12 +104,12 @@ def test_write_commands_are_blocked_without_signoff_even_with_dry_run_off(tmp_pa
     log = tmp_path / "az.log"
     env = {
         **os.environ,
-        "PATH": f"{tmp_path}:{os.environ['PATH']}",
+        "PATH": f"{tmp_path}{os.pathsep}{os.environ['PATH']}",
         "DRY_RUN": "0",
         "MODE_BLOB": "create",
         "AZ_LOG": str(log),
     }
-    res = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True, cwd=test_repo)  # noqa: S603,S607
+    res = subprocess.run([str(BASH), (script).as_posix()], env=env, capture_output=True, text=True, cwd=test_repo)  # noqa: S603,S607
     assert res.returncode == 1
     assert "No sign-off found" in res.stderr
     assert not log.exists(), "no az command may run before approval"
@@ -119,9 +120,9 @@ def test_run_plan_dry_run_executes_nothing_and_succeeds(tmp_path: Path) -> None:
     stub = tmp_path / "az"
     stub.write_text('#!/bin/sh\necho "AZ_STUB $*" >> "$AZ_LOG"\n')
     stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
-    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}", "AZ_LOG": str(tmp_path / "az.log")}
+    env = {**os.environ, "PATH": f"{tmp_path}{os.pathsep}{os.environ['PATH']}", "AZ_LOG": str(tmp_path / "az.log")}
     res = subprocess.run(
-        ["bash", str(REPO / "scripts" / "run-plan.sh")], env=env, capture_output=True, text=True, cwd=REPO
+        [str(BASH), (REPO / "scripts" / "run-plan.sh").as_posix()], env=env, capture_output=True, text=True, cwd=REPO
     )  # noqa: S603,S607
     assert res.returncode == 0, res.stderr[-500:]
     assert "DRY-RUN" in res.stdout and "[EXEC]" not in res.stdout and " EXEC]" not in res.stdout
@@ -145,13 +146,13 @@ def test_core_budget_defaults_to_50_and_refuses_unconfirmed_resource_group_scope
         "APPI": "<APPI>",
     }
     script = INFRA / "10-core.sh"
-    manual = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True, cwd=REPO)  # noqa: S603,S607
+    manual = subprocess.run([str(BASH), (script).as_posix()], env=env, capture_output=True, text=True, cwd=REPO)  # noqa: S603,S607
     assert manual.returncode == 0, manual.stderr
     assert "BUDGET NOT CREATED" in manual.stdout
     assert "az consumption budget create" not in manual.stdout
 
     unconfirmed = subprocess.run(
-        ["bash", str(script)],
+        [str(BASH), (script).as_posix()],
         env={**env, "MODE_BUDGET": "resource-group"},
         capture_output=True,
         text=True,
@@ -162,7 +163,7 @@ def test_core_budget_defaults_to_50_and_refuses_unconfirmed_resource_group_scope
     assert "az monitor log-analytics workspace create" not in unconfirmed.stdout
 
     confirmed_dry_run = subprocess.run(
-        ["bash", str(script)],
+        [str(BASH), (script).as_posix()],
         env={**env, "MODE_BUDGET": "resource-group", "BUDGET_RG_SCOPE_CONFIRMED": "1"},
         capture_output=True,
         text=True,
@@ -182,9 +183,11 @@ def test_ai_script_refuses_serverless_default_before_running_azure_cli(tmp_path:
     stub.write_text('#!/bin/sh\necho "AZ_STUB $*" >> "$AZ_LOG"\n')
     stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
     log = tmp_path / "az.log"
-    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}", "AZ_LOG": str(log)}
+    env = {**os.environ, "PATH": f"{tmp_path}{os.pathsep}{os.environ['PATH']}", "AZ_LOG": str(log)}
 
-    res = subprocess.run(["bash", str(INFRA / "40-ai.sh")], env=env, capture_output=True, text=True, cwd=REPO)  # noqa: S603,S607
+    res = subprocess.run(
+        [str(BASH), (INFRA / "40-ai.sh").as_posix()], env=env, capture_output=True, text=True, cwd=REPO
+    )  # noqa: S603,S607
 
     assert res.returncode == 2
     assert "not the Phi Serverless API" in res.stderr
@@ -243,7 +246,7 @@ def test_containerapp_yaml_has_no_inline_secret_values() -> None:
 @pytest.mark.skipif(not BASH_AVAILABLE, reason="Bash-dependent script check runs in CI")
 def test_config_script_is_dry_run_by_default_and_only_targets_assess_api() -> None:
     out = subprocess.run(
-        ["bash", str(INFRA / "80-assess-api-config.sh")],
+        [str(BASH), (INFRA / "80-assess-api-config.sh").as_posix()],
         capture_output=True,
         text=True,
         env={**os.environ, "DRY_RUN": "1"},
