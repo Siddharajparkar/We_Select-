@@ -29,9 +29,9 @@ def harness_env(env_file: Path = ENV_LOCAL, base: dict[str, str] | None = None) 
     """Environment for the harness: hands it the platform key from api/.env.local (never printed)."""
     env = dict(os.environ if base is None else base)
     if "E2E_PLATFORM_KEY" not in env and env_file.is_file():
-        key = parse_env_file(env_file).get("PLATFORM_KEY", "")
-        if key:
-            env["E2E_PLATFORM_KEY"] = key
+        from_file = parse_env_file(env_file).get("PLATFORM_KEY", "")
+        if from_file:
+            env["E2E_PLATFORM_KEY"] = from_file
     return env
 
 
