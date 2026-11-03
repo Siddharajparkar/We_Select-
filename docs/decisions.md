@@ -11,8 +11,8 @@
 | # | Topic / Decision | Confirmed Value | Operational Notes |
 |---|---|---|---|
 | a | **GitHub Repository** | Existing Repository: `https://github.com/Siddharajparkar/We_Select-.git` | Do not create a new repository. Continue on current repo and branch hierarchy. |
-| b | **Azure Subscription & Tenant** | Existing organizational Subscription & Tenant | Authenticated exclusively from organization-provided laptop. No credentials on dev machine. |
-| c | **Azure Regional Architecture** | Distributed Architecture: **East US** (Apps, Logs, AI Foundry) + **West US** (SQL Server, SQL Database) | Preserve existing regional architecture. Deployment in West US was mandated by regional SQL availability constraints. |
+| b | **Azure Subscription & Tenant** | User-reported personal Azure account/subscription for current connection work (2026-11-03) | User confirms control of the selected subscription and a $50/month project cap. Re-run discovery and obtain fresh plan approval for this scope; do not commit subscription or tenant identifiers. |
+| c | **Azure Regional Architecture** | Reported existing resources span East US, North Central US, West US and Global | Current personal-account inventory reports SQL in West US; AI Services accounts in East US and North Central US; and Log Analytics/Application Insights in North Central US. Confirm each exact resource, owner and deployment target before finalizing regions. Preserve the existing SQL location unless its owner separately approves a change. |
 | d | **R1 — Global Email Uniqueness** | **YES** | User email addresses are globally unique and case-insensitive across all tenants. |
 | e | **R5 — Min Questions per Section** | **Equal to configured count** | Assessments require all configured questions to be present before approval is granted. |
 | f | **R13 — API Ingress** | **External ingress enabled** | Target port 8080 with strict authentication, authorization, and rate-limiting controls. |
@@ -22,20 +22,17 @@
 
 ---
 
-## 2. Organizational Device & Access Constraints
+## 2. Azure Access & Credential Constraints
 
-1. **Device Isolation:**
-   - The organizational Azure account is strictly accessible **only** from the organization-provided laptop.
-   - The local development laptop (Antigravity workspace) has **no direct Azure credentials or network access** to the organizational cloud.
-   - Local installation of Azure CLI on the organizational laptop is blocked by corporate IT policy.
-2. **Approved Administration Channels:**
-   - **Azure Cloud Shell** (via browser on the organization laptop) is the primary CLI execution environment.
-   - **Azure Portal UI** (browser on organization laptop) is the secondary verification and inspection channel.
-3. **Workflow Separation:**
-   - **Development Laptop:** Application code, Python/FastAPI logic, Dockerfiles, unit/integration/contract tests (with fakes), GitHub workflows, scripts, and documentation.
-   - **Organization Laptop:** Cloud Shell command execution, resource inspection, service connection verification, role assignments, and production secret binding.
-4. **Credential Protection:**
-   - No Azure passwords, client secrets, MFA codes, or connection strings shall ever be requested, stored, or committed to Git, local files, or logs.
+1. **Current owner-reported access path (2026-11-03):**
+   - The user reports using their personal Azure account and Windows PowerShell Azure CLI for the selected subscription, and confirms they control that subscription.
+   - Azure Cloud Shell authentication was blocked with AADSTS530035. Do not retry sign-in or attempt to bypass tenant security settings; use the supported account/device path or contact the tenant administrator.
+   - This personal-account context supersedes the earlier organization-laptop-only workflow for current Azure discovery, but all Azure changes remain subject to fresh review and approval in the provisioning plan.
+2. **Workflow separation:**
+   - The user runs Azure commands manually from an authorized account/device. The coding agent has no Azure access and must not run Azure CLI commands or contact Azure resources.
+   - Application code, tests, workflows, scripts, and documentation are developed offline; CI runs on GitHub Actions.
+3. **Credential protection:**
+   - No Azure passwords, client secrets, MFA codes, subscription/tenant IDs, hostnames, or connection strings shall be requested from the user or committed to Git, local files, or logs.
 
 ---
 
@@ -44,10 +41,10 @@
 | Resource Category | Region | Known Existing Resource / Purpose | Notes / Constraints |
 |---|---|---|---|
 | **SQL Database & Server** | **West US** | Assessment SQL Server & Database | Chosen due to Azure SQL service tier availability restrictions in East US. Must not be migrated or duplicated without approval. |
-| **Application & Portal** | **East US** | Existing Assessment Portal App Service / Container App | Existing user-facing portal and runtime. |
-| **Telemetry & Logs** | **East US** | Log Analytics & Application Insights | Centralized diagnostic logging for application components. |
-| **AI Foundry / Microsoft Phi** | **North Central US** *(user-reported target; verify in portal)* | `<AI_RESOURCE>` | User reports Phi-4-mini-instruct Serverless API / pay-as-you-go, v1 chat-completions route, 20,000 TPM and 20 RPM. Verify exact catalog entry, auth/request contract, pricing and access before live connection. |
-| **Storage & Artifacts** | **East US** *(to verify)* | Storage Account (`jd-files` blob container) | Document and file storage. |
+| **Application & Portal** | **East US** *(resource type/target to verify)* | Existing Assessment Portal resource reported in inventory | Confirm its exact type, runtime and ownership before choosing a backend region. |
+| **Telemetry & Logs** | **North Central US** *(current-account inventory, user-reported; suitability to verify)* | Log Analytics & Application Insights | Centralized diagnostic logging for application components; verify ownership, association, and suitability before reuse. |
+| **AI Foundry / Microsoft Phi** | **North Central US and East US accounts reported; target deployment to verify** | `<AI_RESOURCE>` | User previously reported Phi-4-mini-instruct Serverless API / pay-as-you-go, v1 chat-completions route, 20,000 TPM and 20 RPM. Reverify the exact deployment and ownership in the current subscription; confirm auth/request contract, pricing and access before live connection. |
+| **Storage & Artifacts** | **Unresolved** | Storage Account (`jd-files` blob container) | Current storage-account query returned no rows; confirm subscription/scope and target region before deciding whether to create. |
 | **Email Communication** | **East US / Global** *(to verify)* | Azure Communication Services | Managed email sending. |
 
 ---
@@ -55,10 +52,10 @@
 ## 4. Execution Directives Before Provisioning
 
 - [x] Zero-touch on existing Azure resources: No creation, modification, migration, or deletion until plan approval.
-- [x] Inspect existing architecture via Cloud Shell scripts executed on organizational laptop.
+- [ ] Complete read-only discovery in the currently authorized personal-account context; PowerShell inventory is partial and provider-blocked.
 - [x] Evaluate East US vs. West US latency and network topology.
-- [x] Produce resource-by-resource provisioning plan for the $50/month backend ceiling (actual service estimates remain pending).
-- [x] Await explicit human review and sign-off before Phase 1 provisioning.
+- [ ] Revise and review the resource plan, including staged conditional registration of `Microsoft.App` and `Microsoft.ContainerRegistry`; actual prices and budget scope remain unverified.
+- [ ] Obtain fresh human/account-owner approval before provider registration, then separately re-approve the final resource plan before provisioning.
 
 
 
