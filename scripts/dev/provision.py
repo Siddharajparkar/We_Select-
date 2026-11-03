@@ -5,7 +5,7 @@
 
 Steps (run in this order, verify each before the next):
     keyvault  storage  container  registry  environment  identities  roles-owner  roles-app  app  registry-link
-    roles-deploy  sql-firewall
+    roles-deploy  sql-firewall  oidc
 
 ``--apply`` needs the human SIGN-OFF line in the plan. A step whose resource already exists is skipped. Nothing here
 prints a key or connection string. Everything created is tagged project=ai-assessment env=mvp.
@@ -208,6 +208,35 @@ def _sql_firewall(c: Ctx) -> list[Action]:
     ]  # fmt: skip
 
 
+ISSUER = "https://token.actions.githubusercontent.com"
+AUDIENCE = "api://AzureADTokenExchange"
+
+
+def _oidc(c: Ctx) -> list[Action]:
+    """GitHub Actions federated credentials for the deploy identity: the main branch and the production environment.
+
+    The deploy job runs in the `production` environment (subject ...:environment:production); rollback and nightly
+    run from main without an environment (subject ...:ref:refs/heads/main). Both are needed.
+    """
+    repo = c.need("GITHUB_REPO")
+    ident = c.need("AZ_DEPLOY_IDENTITY")
+    wanted = {
+        "gh-main-branch": f"repo:{repo}:ref:refs/heads/main",
+        "gh-env-production": f"repo:{repo}:environment:production",
+    }
+    acts: list[Action] = []
+    for name, subject in wanted.items():
+        if c.exists(["identity", "federated-credential", "show", "-g", c.rg, "--identity-name", ident, "-n", name,
+                     "--query", "name", "-o", "tsv"]):  # fmt: skip
+            continue
+        acts.append(
+            (f"trust GitHub Actions subject {subject}",
+             ["identity", "federated-credential", "create", "-g", c.rg, "--identity-name", ident, "-n", name,
+              "--issuer", ISSUER, "--subject", subject, "--audiences", AUDIENCE])
+        )  # fmt: skip
+    return acts
+
+
 STEPS: dict[str, Callable[[Ctx], list[Action]]] = {
     "keyvault": _keyvault,
     "storage": _storage,
@@ -221,6 +250,7 @@ STEPS: dict[str, Callable[[Ctx], list[Action]]] = {
     "registry-link": _registry_link,
     "roles-deploy": _roles_deploy,
     "sql-firewall": _sql_firewall,
+    "oidc": _oidc,
 }
 
 
