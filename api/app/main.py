@@ -12,7 +12,7 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import __version__
@@ -96,6 +96,13 @@ def create_app(
         redoc_url=None,
         openapi_url=None if settings.is_production else "/api/v1/openapi.json",
     )
+    if not settings.is_production:
+
+        @app.get("/", include_in_schema=False)
+        @app.get("/docs", include_in_schema=False)
+        def docs_shortcut() -> RedirectResponse:
+            return RedirectResponse(url=f"{API_PREFIX}/docs")
+
     app.state.settings = settings
     app.state.repos = repos
     app.state.providers = providers

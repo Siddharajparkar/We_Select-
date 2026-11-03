@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import stat
 import subprocess
 from pathlib import Path
@@ -15,6 +16,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 INFRA = REPO / "infra" / "azure"
+BASH_AVAILABLE = shutil.which("bash") is not None
 SCRIPTS = [
     "10-core.sh",
     "20-sql.sh",
@@ -74,11 +76,12 @@ def test_provisioning_scripts_are_strict_bash(script: str) -> None:
 
 
 def test_plan_is_unsigned_and_agent_never_signs_it() -> None:
-    plan = (REPO / "docs" / "PROVISIONING_PLAN.md").read_text()
+    plan = (REPO / "docs" / "PROVISIONING_PLAN.md").read_text(encoding="utf-8")
     assert "SIGN-OFF: <not approved>" in plan
     assert not re.search(r"^SIGN-OFF: APPROVED by", plan, re.M), "only a human may write the approval line"
 
 
+@pytest.mark.skipif(not BASH_AVAILABLE, reason="Bash-dependent script check runs in CI")
 def test_write_commands_are_blocked_without_signoff_even_with_dry_run_off(tmp_path: Path) -> None:
     """Behavioural check: DRY_RUN=0 + unsigned plan => exit 1 and the stubbed `az` is never asked to write."""
     stub = tmp_path / "az"
@@ -98,6 +101,7 @@ def test_write_commands_are_blocked_without_signoff_even_with_dry_run_off(tmp_pa
     assert not log.exists(), "no az command may run before approval"
 
 
+@pytest.mark.skipif(not BASH_AVAILABLE, reason="Bash-dependent script check runs in CI")
 def test_run_plan_dry_run_executes_nothing_and_succeeds(tmp_path: Path) -> None:
     stub = tmp_path / "az"
     stub.write_text('#!/bin/sh\necho "AZ_STUB $*" >> "$AZ_LOG"\n')
@@ -164,6 +168,7 @@ def test_containerapp_yaml_has_no_inline_secret_values() -> None:
     assert "<ACR>" in text and not re.search(r"\.azurecr\.io/assess-api:[0-9a-f]{7,}", text)
 
 
+@pytest.mark.skipif(not BASH_AVAILABLE, reason="Bash-dependent script check runs in CI")
 def test_config_script_is_dry_run_by_default_and_only_targets_assess_api() -> None:
     out = subprocess.run(
         ["bash", str(INFRA / "80-assess-api-config.sh")],
