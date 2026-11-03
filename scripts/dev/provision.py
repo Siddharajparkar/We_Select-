@@ -5,7 +5,7 @@
 
 Steps (run in this order, verify each before the next):
     keyvault  storage  container  registry  environment  identities  roles-owner  roles-app  app  registry-link
-    roles-deploy
+    roles-deploy  sql-firewall
 
 ``--apply`` needs the human SIGN-OFF line in the plan. A step whose resource already exists is skipped. Nothing here
 prints a key or connection string. Everything created is tagged project=ai-assessment env=mvp.
@@ -21,15 +21,15 @@ from collections.abc import Callable
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import DevError, Runner, load_config, require_signoff, run_az
+from common import DevError, Runner, load_config, public_ip, require_signoff, run_az
 
 TAGS = ["project=ai-assessment", "env=mvp"]
 PLACEHOLDER_IMAGE = "mcr.microsoft.com/k8se/quickstart:latest"  # public; replaced by the pipeline's first deploy
 
 
 class Ctx:
-    def __init__(self, cfg: dict[str, str], runner: Runner) -> None:
-        self.cfg, self.runner = cfg, runner
+    def __init__(self, cfg: dict[str, str], runner: Runner, ip_provider: Callable[[], str] = public_ip) -> None:
+        self.cfg, self.runner, self.ip_provider = cfg, runner, ip_provider
         self.rg = cfg["AZ_RESOURCE_GROUP"]
         self.loc = cfg.get("AZ_LOCATION", "eastus")
 
@@ -131,9 +131,12 @@ def _identities(c: Ctx) -> list[Action]:
 
 
 def _assign(c: Ctx, principal_id: str, ptype: str, role: str, scope: str, why: str) -> list[Action]:
-    have = c.az(["role", "assignment", "list", "--assignee", principal_id, "--role", role, "--scope", scope,
-                 "--query", "length(@)", "-o", "tsv"]).strip()  # fmt: skip
-    if have not in ("", "0"):
+    # No parentheses in --query: on Windows az is a .cmd file and cmd.exe breaks on an unquoted ")".
+    have = c.az(
+        ["role", "assignment", "list", "--assignee", principal_id, "--role", role, "--scope", scope,
+         "--query", "[].id", "-o", "tsv"]
+    ).strip()  # fmt: skip
+    if have:
         return []
     return [
         (f"{role}: {why}",
@@ -190,6 +193,21 @@ def _roles_deploy(c: Ctx) -> list[Action]:
     )
 
 
+def _sql_firewall(c: Ctx) -> list[Action]:
+    ip = c.ip_provider()
+    name = "dev-" + ip.replace(".", "-")
+    server = c.need("AZ_SQL_SERVER")
+    if c.exists(
+        ["sql", "server", "firewall-rule", "show", "-g", c.rg, "-s", server, "-n", name, "--query", "name", "-o", "tsv"]
+    ):
+        return []
+    return [
+        (f"allow this laptop ({ip}) to reach the SQL server",
+         ["sql", "server", "firewall-rule", "create", "-g", c.rg, "-s", server, "-n", name,
+          "--start-ip-address", ip, "--end-ip-address", ip]),
+    ]  # fmt: skip
+
+
 STEPS: dict[str, Callable[[Ctx], list[Action]]] = {
     "keyvault": _keyvault,
     "storage": _storage,
@@ -202,16 +220,19 @@ STEPS: dict[str, Callable[[Ctx], list[Action]]] = {
     "app": _app,
     "registry-link": _registry_link,
     "roles-deploy": _roles_deploy,
+    "sql-firewall": _sql_firewall,
 }
 
 
-def main(argv: list[str] | None = None, *, runner: Runner = subprocess.run) -> int:
+def main(
+    argv: list[str] | None = None, *, runner: Runner = subprocess.run, ip_provider: Callable[[], str] = public_ip
+) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("step", choices=list(STEPS))
     ap.add_argument("--apply", action="store_true", help="perform the changes (default: dry run)")
     args = ap.parse_args(argv)
     try:
-        c = Ctx(load_config(), runner)
+        c = Ctx(load_config(), runner, ip_provider)
         actions = STEPS[args.step](c)
         if not actions:
             print(f"  nothing to do: '{args.step}' already in place")

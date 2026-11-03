@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 import sys
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, MutableMapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -248,7 +248,33 @@ def probe_acs(to_email: str | None, env: Mapping[str, str] | None = None) -> Pro
         return ProbeResult("acs", "FAIL", _ms(start), _safe(str(exc)))
 
 
+def load_local_env(environ: MutableMapping[str, str] | None = None) -> int:
+    """Developer convenience: fill missing variables from ``api/.env.local`` (same rules as the server).
+
+    Never in production, never when ``ASSESS_IGNORE_ENV_LOCAL=1``, and real environment variables win.
+    Returns how many variables were added; values are never printed.
+    """
+    from dotenv import dotenv_values
+
+    from ..config import env_local_file
+
+    env = os.environ if environ is None else environ
+    path = env_local_file(env)
+    if path is None:
+        return 0
+    values = {k: v for k, v in dotenv_values(path, encoding="utf-8").items() if v is not None}
+    if values.get("APP_ENV") == "production":
+        return 0
+    added = 0
+    for key, value in values.items():
+        if key not in env:
+            env[key] = value
+            added += 1
+    return added
+
+
 def main(argv: list[str] | None = None) -> int:
+    load_local_env()
     args = list(sys.argv[1:] if argv is None else argv)
     target = args[0] if args and not args[0].startswith("--") else "all"
     to_email = args[args.index("--to") + 1] if "--to" in args and args.index("--to") + 1 < len(args) else None

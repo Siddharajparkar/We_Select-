@@ -106,7 +106,7 @@ def test_write_env_local_round_trips(tmp_path: Path) -> None:
 def test_developer_settings_use_azure_but_are_not_production() -> None:
     s = common.non_secret_settings({"FOUNDRY_DEPLOYMENT": "dep"})
     assert s["APP_ENV"] == "development" and s["AI_MODE"] == "azure" and s["FOUNDRY_DEPLOYMENT"] == "dep"
-    assert s["REPO_BACKEND"] == "sql" and s["COOKIE_SECURE"] == "false"
+    assert s["REPO_BACKEND"] == "sql" and "COOKIE_SECURE" not in s  # same cookie rules as production
 
 
 def test_setup_check_mode_changes_nothing(
@@ -342,7 +342,7 @@ class FakeAz:
         if line.startswith("storage container exists"):
             return subprocess.CompletedProcess(cmd, 0, '{"exists": false}', "")
         if "role assignment list" in line:
-            return subprocess.CompletedProcess(cmd, 0, "0\n", "")
+            return subprocess.CompletedProcess(cmd, 0, "", "")  # no existing assignment
         return subprocess.CompletedProcess(cmd, 0, "SOME-ID\n", "")
 
     def writes(self) -> list[list[str]]:
@@ -459,3 +459,54 @@ def test_config_file_with_a_windows_bom_still_parses(tmp_path: Path) -> None:
     p = tmp_path / "azure.local.env"
     p.write_bytes(b"\xef\xbb\xbfAZ_RESOURCE_GROUP=rg\nAZ_KEY_VAULT=kv\nAZ_SQL_SERVER=s\nAZ_APP=a\n")
     assert common.load_config(p)["AZ_RESOURCE_GROUP"] == "rg"
+
+
+def test_az_arguments_never_contain_cmd_exe_metacharacters() -> None:
+    """Regression: `--query length(@)` broke on Windows (az is a .cmd file). Every command the scripts build is safe."""
+    steps_az = []
+    for step in provision.STEPS:
+        fake = FakeAz(
+            missing=("keyvault show", "storage account show", "acr show", "containerapp env show", "containerapp show")
+        )
+        monkey_cfg = dict(PCFG)
+        ctx = provision.Ctx(monkey_cfg, fake)
+        try:
+            provision.STEPS[step](ctx)
+        except common.DevError:
+            pass
+        steps_az += fake.calls
+    assert steps_az
+    for call in steps_az:
+        for arg in call:
+            assert not any(ch in arg for ch in common.CMD_UNSAFE), (call, arg)
+
+
+def test_run_az_refuses_unsafe_arguments_for_cmd_files() -> None:
+    with pytest.raises(common.DevError, match="cmd.exe"):
+        common.run_az(["x", "--query", "length(@)"], runner=fake_runner(), exe="C:/cli/az.cmd")
+    # a real exe (macOS/Linux) is not affected
+    assert common.run_az(["x", "--query", "length(@)"], runner=fake_runner(stdout="1"), exe="/usr/bin/az") == "1"
+
+
+def test_sql_firewall_step_opens_only_this_laptops_ip(pcfg: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(provision, "require_signoff", lambda: None)
+    az = FakeAz(missing=("sql server firewall-rule show",))
+    assert provision.main(["sql-firewall", "--apply"], runner=az, ip_provider=lambda: "203.0.113.7") == 0
+    (cmd,) = az.writes()
+    assert cmd[cmd.index("--start-ip-address") + 1] == "203.0.113.7" == cmd[cmd.index("--end-ip-address") + 1]
+    assert cmd[cmd.index("-n") + 1] == "dev-203-0-113-7"
+    again = FakeAz()
+    provision.main(["sql-firewall", "--apply"], runner=again, ip_provider=lambda: "203.0.113.7")
+    assert again.writes() == []
+
+
+def test_verify_hands_the_platform_key_to_the_harness_without_printing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    f = tmp_path / ".env.local"
+    f.write_text("PLATFORM_KEY=real-looking-key-value-0123456789abcdef\nOTHER=1\n", encoding="utf-8")
+    env = verify.harness_env(f, base={"PATH": "x"})
+    assert env["E2E_PLATFORM_KEY"] == "real-looking-key-value-0123456789abcdef"
+    assert verify.harness_env(f, base={"E2E_PLATFORM_KEY": "explicit"})["E2E_PLATFORM_KEY"] == "explicit"
+    assert "E2E_PLATFORM_KEY" not in verify.harness_env(tmp_path / "missing", base={})
+    assert "real-looking" not in capsys.readouterr().out
