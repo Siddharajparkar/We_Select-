@@ -3,26 +3,27 @@
 
 **Companion to:** Prompt A (`docs/prompts/PROMPT_A_MASTER.md`, the original end-to-end plan), Prompt B (`docs/prompts/PROMPT_B_ADDENDUM_OFFLINE_AZURE_READY.md`, the update for "no Docker, no Azure while building") and the decision record (`docs/`, "Project Decisions & Organizational Constraints", which wins over both).
 **Saved in the repo as:** `docs/OFFICE_CONNECTION_AND_TESTING_GUIDE.md`
-**Audience:** you, at the office, **without AI help**, on the organisation laptop, where Docker is not available and the Azure CLI cannot be installed (you use **Azure Cloud Shell** in the browser).
+**Audience:** the account owner, following the steps manually with no Azure access by the coding agent. Docker is not required. Run Azure commands only from a device/account you are authorized to use; the current user-reported path is Windows PowerShell with Azure CLI under a personal Azure account.
 
 ### OC-0 status update (2026-11-03; user-reported, not independently verified)
-- The user later clarified that some Azure CLI output was produced on the development laptop rather than the approved organization Cloud Shell. Treat **all CLI inventory results below as provisional leads**; re-run them in the organization Cloud Shell or Azure portal before selecting REUSE/CREATE.
+- Earlier Azure CLI results below are from prior access contexts and are historical leads only. The current personal-account Windows PowerShell inventory is recorded later in this section; reverify all older SQL/model details in the currently selected subscription before choosing REUSE/CREATE.
 - The planning ceiling is now **$50 USD/month for this backend**, superseding the earlier $25 amount. Intended alerts are **$25 / $40 / $50**. The user reports a $50 budget exists, but its Azure scope and alert thresholds remain unverified.
 - At the user's request, month-to-date Cost Analysis is deferred. A previous-month spend of about $50 was reported, but its scope is unknown. Do not treat either figure as a backend-only estimate.
-- The account owner reports the SQL database is empty, the ACS resource exists without Email service/domain, and the Foundry project has a Phi-4-mini-instruct deployment. Verify these in the organization tenant and confirm the exact SQL target and resource ownership.
+- The account owner reports the SQL database is empty, the ACS resource exists without Email service/domain, and the Foundry project has a Phi-4-mini-instruct deployment. Reverify these in the currently selected subscription and confirm the exact SQL target and resource ownership.
 - The user reports the Phi v1 chat-completions route and limits of 20,000 tokens/minute and 20 requests/minute. Verify authentication, full request/response behavior and pricing before any live model call; these rate limits do not bound monthly cost.
-- **New OC-0 evidence reported from organization Cloud Shell / SQL Query Editor (2026-11-03):** the SQL metadata result lists only built-in schemas and does not show `assess`; database metadata reports General Purpose, `GP_S_Gen5_2`, compatibility level 170, and collation `SQL_Latin1_General_CP1_CI_AS`. The deployment list succeeded through a read-only ARM request using API version `2025-06-01` and returned model/deployment `Phi-4-mini-instruct`, model version `1`, SKU `GlobalStandard`, capacity `20`, in the North Central US account. These are user-provided outputs, not independently checked by the agent. The model endpoint's authentication/request compatibility and monthly cost remain unverified.
-- **Provider and resource-list results reported from Cloud Shell (2026-11-03):** `Microsoft.App` and `Microsoft.ContainerRegistry` are `NotRegistered`; `Microsoft.OperationalInsights`, `Microsoft.Sql`, `Microsoft.Storage`, `Microsoft.CognitiveServices`, `Microsoft.Communication`, and `Microsoft.Insights` are `Registered`. The user pasted three unlabeled resource-list tables (two rows in North Central US and one global). Assuming they are in the order of the guide's queries, these are Log Analytics, Application Insights, and Communication Services; verify by rerunning each command separately if the command/output order differed. No Container Apps query was run because `Microsoft.App` is not registered. Provider registration changes subscription state and must wait for an explicitly reviewed plan.
+- **Earlier OC-0 evidence from a previous access context (2026-11-03):** the SQL metadata result listed only built-in schemas and did not show `assess`; database metadata reported General Purpose, `GP_S_Gen5_2`, compatibility level 170, and a collation. A read-only deployment listing reported Phi-4-mini-instruct, model version `1`, `GlobalStandard`, capacity `20`, in North Central US. These are historical user-provided outputs; reverify the SQL target and deployment in the currently selected subscription. Authentication/request compatibility and monthly cost remain unverified.
+- **Earlier provider/resource-list results reported from Cloud Shell (2026-11-03):** `Microsoft.App` and `Microsoft.ContainerRegistry` were reported as `NotRegistered`; other queried providers were reported as `Registered`. The current personal-account Windows PowerShell inventory below is the active provider-state report. Provider registration changes subscription state and requires an explicitly reviewed plan.
 - Partial organization Cloud Shell PowerShell inventory was shared on 2026-11-03: AI Services accounts were listed in North Central US and East US; Log Analytics and Application Insights were listed in North Central US; a Communication Services resource and West US SQL server were listed. ACR and Storage account list commands returned no rows. Container Apps queries were blocked because Microsoft.App was not registered. SQL database and AI deployment list commands did not run because the required resource-group/name variables were empty; the provider-status Bash loop was entered in PowerShell and failed. Keep this inventory partial; do not infer database schema, deployment details, or provider states from it. Real identifiers and telemetry connection strings from the pasted output are intentionally omitted.
 - Subscription-wide read-only queries returned AI resources in East US and North Central US, and Log Analytics/Application Insights in North Central US. The intended AI account/deployment and suitability of the monitoring resources for reuse are unresolved. No ACR or Storage rows were returned.
 - The Container Apps environment could not be queried because `Microsoft.App` is not registered. This does **not** prove that no environment exists. Provider registration is a subscription change and must wait for the signed plan.
-- The user entered a sign-off line in the local plan, but that plan is currently uncommitted and must be available on `main` before a fresh Cloud Shell clone can use it. OC-0 is read-only and remains required; no Azure changes have been made by this agent.
+- The prior plan approval is superseded because the current personal-account access context and provider-registration scope were not covered by its review. The revised plan must be freshly approved on `main` before any provider registration or provisioning.
+- **Personal-account inventory update (2026-11-03; user-reported):** Cloud Shell authentication was blocked with AADSTS530035, so the user ran read-only Azure CLI inventory from Windows PowerShell. The selected subscription showed Enabled. The reported inventory found SQL, AI Services accounts, Log Analytics, Application Insights, and Communication Services; storage and ACR list queries returned no rows. Provider states were `NotRegistered` for `Microsoft.App` and `Microsoft.ContainerRegistry`, and `Registered` for the other six queried providers. The empty ACR result is inconclusive while its provider is unregistered; Container Apps could not be enumerated. The complete SQL metadata inventory, Phi ownership/API/pricing, ACS Email linkage, and budget scope/alerts remain outstanding. No Azure resource or provider was changed.
 
 ### What this guide assumes
 - Backend phases 0-6 are implemented locally. Azure connectivity is not yet verified; Phases 7-13 remain to be built.
 - The code is in the existing repository `Siddharajparkar/We_Select-` on `main`. There is **no move to another repository**.
-- The Azure subscription **already contains the Assessment Portal** (a shared SQL database in West US, AI resources, logs, Application Insights, a Container Apps environment and possibly a registry). The backend will use Microsoft Phi; its exact model variant, deployment, and API compatibility are not yet verified. The rule is **reuse first, create only what is missing, change nothing until the written plan is signed off**.
-- You use the Azure login you are allowed to use on this laptop (see section 1). **Never type anyone's password anywhere except the Microsoft sign-in page, and never give a password, key or connection string to an AI tool.**
+- The selected Azure subscription is reported to contain the Assessment Portal, SQL, AI, monitoring, and Communication Services resources. A Container Apps environment and registry have not yet been verified because their providers are unregistered. The backend will use Microsoft Phi; its exact model variant, deployment, and API compatibility must be reverified in the current subscription. The rule is **reuse first, create only what is missing, change nothing outside the freshly approved plan**.
+- You use only an Azure account and device you are authorized to use. The current user-reported path is the personal Azure account from Windows PowerShell; Cloud Shell was blocked by tenant security defaults. **Never type anyone's password anywhere except the Microsoft sign-in page, and never give a password, key or connection string to an AI tool.**
 - You need **no Docker** anywhere in this guide. Images are built by GitHub Actions or by Azure itself (`az acr build`).
 - The **repository is public**. Real resource names, subscription and tenant ids, hostnames, emails, keys and tokens go **only** into your private notes file, your password manager and Azure itself, never into the repository, issues, pull requests or workflow logs.
 
@@ -35,9 +36,9 @@ The commands below were written **without access to Azure**. Most will work as w
 
 | ID | Phase | What gets connected or proven | Status | Date | Evidence saved |
 |---|---|---|---|---|---|
-| OC-0 | 1 | Read-only discovery of what already exists, SQL inventory, cost baseline | PARTIAL: SQL DB, Foundry deployment and provider status still need valid queries; SQL inventory pending | | |
-| OC-PLAN | 1 | `docs/PROVISIONING_PLAN.md` reviewed and **signed off** by you and the Azure account owner | Sign-off in local uncommitted plan; verify on `main` | | |
-| OC-1A | 1 | Core resources (registry, logs, Application Insights, Container Apps environment): reuse or create, tags, budget | PENDING | | |
+| OC-0 | 1 | Read-only discovery of what already exists, SQL inventory, cost baseline | PARTIAL: personal-account inventory/provider states reported; SQL metadata, Phi ownership/API, ACS Email and budget checks remain | | |
+| OC-PLAN | 1 | `docs/PROVISIONING_PLAN.md` reviewed and **signed off** by you and the Azure account owner | PRIOR approval superseded; revised plan requires fresh approval on `main` | | |
+| OC-1A | 1 | Core resources (registry, logs, Application Insights, Container Apps environment): reuse or create, tags, budget | BLOCKED: provider registration and inventory decisions require revised approved plan | | |
 | OC-1B | 1 | Existing Azure SQL: schema `assess` and the app user | PENDING | | |
 | OC-1C | 1 | Blob Storage account and private container (create) | PENDING | | |
 | OC-1D | 1 | Owner-approved Microsoft Phi model/deployment and API route verified | PENDING | | |
@@ -108,12 +109,12 @@ If you are an AI agent reading this file from the repository (not the human at t
 ## 1. Before you start (the first hour)
 
 ### 1.1 How you access Azure
-You use Azure **only** through a browser on the organisation laptop: the **Azure portal** and **Azure Cloud Shell** (Bash). The Azure CLI cannot be installed on this laptop.
+Use Azure only through an account and device you are authorized to use. The current user-reported path is Windows PowerShell with Azure CLI under a personal Azure account; Cloud Shell authentication was blocked with AADSTS530035. Do not retry sign-in or bypass security defaults; contact the tenant administrator if the supported account/device path stops working.
 
 | Mode | When | What you need |
 |---|---|---|
-| **A: your own login** (preferred) | The account owner (your teammate) can give **your own account** access | Roles on the resource group(s) you need: **Contributor** for creating our resources, plus permission to assign roles (for example **User Access Administrator** on the registry and the group) or the owner runs the role commands for you. |
-| **B: owner drives** | Roles cannot be granted | The owner signs in on the device they are allowed to use and runs the commands while you read them out and check the results. You never type their password or use their session on a machine they did not authorise. |
+| **A: owner-controlled personal subscription** (current report) | The user confirms control of the selected subscription | Verify that this subscription contains the intended resources. Use least privilege; role assignment commands still require the appropriate Azure permissions. |
+| **B: owner drives** | The subscription owner must perform a restricted operation | The owner runs only the approved commands from a device/account they authorize. Never type their password or reuse their session on an unauthorized machine. |
 
 Either way, **creating the GitHub trust (OC-1G)**, **role assignments (OC-1F)** and **the database schema and user (OC-1B)** need elevated permission. If you lack it, the owner runs just those few commands (the plan marks them `IAM-CHANGE` / `DB-CHANGE`).
 
@@ -140,9 +141,9 @@ Either way, **creating the GitHub trust (OC-1G)**, **role assignments (OC-1F)** 
 
 | Need | How |
 |---|---|
-| Run Azure commands | **Azure Cloud Shell, Bash**, opened from the portal. When it asks about storage, choose **"No storage account required"** (select the subscription, then Apply). Nothing is created in the subscription, but the session is **ephemeral**: files and variables disappear after about 20 minutes idle. |
-| Get the repository scripts | In Cloud Shell: `git clone https://github.com/Siddharajparkar/We_Select-.git && cd We_Select-` (public repository, no login). The scripts contain no secrets. Re-clone in every new session. |
-| Remember the variables | Keep the **non-secret variable block** (section 3) in your private notes and paste it at the start of every Cloud Shell session. **Secrets** are never saved in Cloud Shell: they live in your password manager and, once deployed, in Container Apps secrets. Re-enter one with `read -rsp`. |
+| Run Azure commands | Use an authorized Windows PowerShell Azure CLI session (the current user-reported path), or Cloud Shell only if authentication works. Bash examples below require Bash; do not paste Bash loops into PowerShell. |
+| Get the repository scripts | Use the latest reviewed `main` clone from GitHub or the local working copy. Verify the plan approval in that clone before any approved Azure change. |
+| Remember the variables | Keep the **non-secret variable block** (section 3) in private notes; Bash `export` syntax applies only in Bash. Never save credentials in a script, repository, or log. |
 | Build the image | **GitHub Actions** builds it in the cloud. Fallback: `az acr build` (builds inside Azure; no local Docker). |
 | Run the live E2E tests | **GitHub Actions** workflow `live-e2e` (manual start). |
 | Run Azure probes | **`az containerapp exec`** runs them **inside** the running container (no SQL firewall changes needed). If `exec` misbehaves, use the portal: Container App, **Monitoring, Console**. |
@@ -191,18 +192,32 @@ export TAGS="project=ai-assessment env=mvp"
 az account set --subscription "$SUB"
 az account show -o table
 ```
-**Check:** the table shows the subscription the account owner named. If it shows another one, stop.
+**Check:** the table shows the intended enabled subscription. Keep its ID private. If it shows another subscription, stop.
 
-(Cloud Shell is already signed in with the account you used for the portal. Do **not** run `az login` with anyone else's account.)
+(Use only an Azure account and device you are authorized to use. Do not share credentials or run interactive sign-in commands copied from an error message without following your account administrator's instructions.)
 
-**Required one-time setup (providers and extensions): only if OC-0 shows a provider as `NotRegistered`.** Registering a provider is a subscription-level change, so it is listed in the plan (`IAM-CHANGE`); do it only after sign-off:
+**Provider registration is a subscription-level change.** Current user-reported inventory shows `Microsoft.App` and `Microsoft.ContainerRegistry` as `NotRegistered`; this blocks Container Apps and ACR enumeration, and the empty ACR list is inconclusive. The old approval has been superseded. Do not register either provider until the revised plan is on `main` with fresh human/account-owner approval explicitly limited to these registrations and read-only re-inventory. For this first approved stage, run only the provider registration commands and the read-only inventory below; do not run provisioning scripts or create resources. After inventory, update the plan, supersede the staged approval, and obtain a separate fresh approval before any service/resource provisioning.
+
+For Windows PowerShell, after that limited approval is present, run:
+```powershell
+foreach ($provider in @("Microsoft.App", "Microsoft.ContainerRegistry")) {
+  $state = az provider show --namespace $provider --query registrationState -o tsv
+  if ($LASTEXITCODE -ne 0) { throw "Provider-state lookup failed; stop and report the sanitized error." }
+  if ($state -eq "NotRegistered") {
+    az provider register --namespace $provider --wait
+    if ($LASTEXITCODE -ne 0) { throw "Provider registration failed; stop and contact the subscription owner." }
+  }
+}
+```
+Then re-check both states with `az provider show`. Register only those still reported `NotRegistered`; do not register other providers unless the reviewed plan separately authorizes them.
+
+Cloud Shell Bash equivalent, only if using a working authorized Cloud Shell session:
 ```bash
-for p in Microsoft.App Microsoft.Communication Microsoft.Storage Microsoft.Insights; do
+for p in Microsoft.App Microsoft.ContainerRegistry; do
   echo -n "$p: "; az provider show -n "$p" --query registrationState -o tsv
 done
-# register ONLY the ones that are NotRegistered, e.g.:  az provider register --namespace Microsoft.Communication
-az extension add --name containerapp --upgrade
 ```
+Do not install extensions or run provisioning scripts until the staged review authorizes those steps.
 
 ### Secrets: how to handle them
 Generate each secret, put it in your password manager **first**, and only then use it. Read values into variables without echoing:
@@ -213,9 +228,15 @@ Never run `echo $SECRET`. Never paste a secret into a ticket, chat or any AI too
 
 ---
 
-## 4. Getting the scripts into Cloud Shell (replaces "moving the code")
+## 4. Getting the reviewed scripts
 
-There is no repository move. In every new Cloud Shell session:
+There is no repository move. Use the latest reviewed `main` checkout in the shell you are authorized to use. In PowerShell, if you need a fresh checkout:
+```powershell
+git clone --branch main --single-branch https://github.com/Siddharajparkar/We_Select-.git
+Set-Location We_Select-
+git log -1 --oneline
+```
+In Bash:
 ```bash
 git clone https://github.com/Siddharajparkar/We_Select-.git && cd We_Select-
 git log --oneline -1          # must show the latest merged commit; scripts are on main
@@ -231,20 +252,14 @@ Each checkpoint has: **Needs**, **Do**, **Expect**, **Test**, **If it fails**, *
 ---
 
 ## OC-0: Read-only discovery (nothing is created or changed)
-**Needs:** section 2 (Cloud Shell, no storage), section 4 (clone). **Nobody runs anything that creates, changes, deletes or reveals secrets in this checkpoint.**
+**Needs:** an authorized Azure account/device and a `main` checkout from section 4. **Nobody runs anything that creates, changes, deletes or reveals secrets in this checkpoint.**
 
 ### Start OC-0: where to go and which shell to use
 
-1. On the **organization laptop**, open [portal.azure.com](https://portal.azure.com) in the browser and sign in with the organization account that is authorized for this subscription. Do not send anyone a password, MFA code, key, or connection string.
-2. Open **Cloud Shell** from the portal's top bar. If asked to choose a shell, choose **Bash**. If Cloud Shell is currently PowerShell, use its shell menu to switch to Bash; do not paste Bash commands into PowerShell. If asked about storage, choose the no-storage option if available. Cloud Shell is temporary, so keep the guide and private notes open separately.
-3. In Cloud Shell, clone the public repository and enter its folder:
-   ```bash
-   git clone https://github.com/Siddharajparkar/We_Select-.git
-   cd We_Select-
-   git log -1 --oneline
-   ```
-   The last command prints the checked-out commit. This is only to read the SQL inventory file; it does not connect to or change Azure.
-4. Run the following in Cloud Shell **one block at a time**. Keep the output in private notes. Resource names and subscription details are private; do not paste raw output into chat, GitHub, or this public repository.
+1. Sign in to the Azure Portal with the account authorized for the intended subscription. Do not send anyone a password, MFA code, key, or connection string.
+2. The current user-reported path is Windows PowerShell with Azure CLI. Cloud Shell authentication was blocked; do not retry sign-in or bypass security defaults. If using Bash instead, follow only the Bash commands; do not paste Bash loops into PowerShell.
+3. Use the reviewed `main` checkout from section 4. If Cloud Shell works for your account, it is temporary; keep the guide and private notes open separately.
+4. Run the following read-only Azure commands **one block at a time** in your authorized shell. Keep output in private notes. Resource names and subscription details are private; do not paste raw output into chat, GitHub, or this public repository.
 
 ### Do 1: verify account and discover names before setting variables
 
@@ -299,15 +314,32 @@ az rest --method get \
 ```
 This request reads only deployment metadata. If it returns another API-version error, do not try random versions; record the exact error privately and ask the resource owner to confirm the supported deployment-list API version or check the deployment in the Foundry portal. Do not include the full resource URL, subscription ID, or raw output in the public repo or chat.
 
-Check provider states without registering anything:
+Check provider states without registering anything. In Windows PowerShell:
+```powershell
+$providers = @(
+  "Microsoft.App", "Microsoft.OperationalInsights", "Microsoft.ContainerRegistry",
+  "Microsoft.Sql", "Microsoft.Storage", "Microsoft.CognitiveServices",
+  "Microsoft.Communication", "Microsoft.Insights"
+)
+foreach ($provider in $providers) {
+  $state = az provider show --namespace $provider --query registrationState -o tsv
+  if ($LASTEXITCODE -ne 0) { throw "Provider-state lookup failed; stop and report the sanitized error." }
+  Write-Output "${provider}: ${state}"
+}
+```
+In Bash:
 ```bash
 for p in Microsoft.App Microsoft.OperationalInsights Microsoft.ContainerRegistry Microsoft.Sql Microsoft.Storage Microsoft.CognitiveServices Microsoft.Communication Microsoft.Insights; do
   printf '%s: ' "$p"
   az provider show --namespace "$p" --query registrationState -o tsv
 done
 ```
-If `Microsoft.App` is `NotRegistered`, record that and stop the Container Apps lookup. **Do not run `az provider register`** during OC-0; provider registration is a change and must be explicitly listed in the reviewed plan first.
+If `Microsoft.App` or `Microsoft.ContainerRegistry` is `NotRegistered`, record it. Do not attempt the corresponding resource listing until the staged provider-registration approval described above is on `main` and the provider has reached `Registered`.
 
+If `Microsoft.ContainerRegistry` is registered, list ACR:
+```bash
+az acr list --query "[].{resourceGroup:resourceGroup,location:location,sku:sku.name}" -o table
+```
 If `Microsoft.App` is registered, list Container Apps environments and apps:
 ```bash
 az containerapp env list --query "[].{name:name,resourceGroup:resourceGroup,location:location,state:properties.provisioningState}" -o table
@@ -316,7 +348,7 @@ az containerapp list --query "[].{name:name,resourceGroup:resourceGroup,location
 
 ### Do 2: run the SQL metadata inventory in Azure Portal
 
-The SQL inventory is **T-SQL**, not an Azure CLI command. In the Azure portal on the organization laptop, open the exact database identified above: **SQL databases → your target database → Query editor → sign in with the owner-approved Entra account**. Open the repository file [`infra/azure/discovery/sql-inventory.sql`](../infra/azure/discovery/sql-inventory.sql) from the checked-out repository or GitHub, copy its full contents into the Query editor, and select **Run**. The script reads metadata only; it does not read candidate/business rows or modify the database. Save the output privately. Confirm the database identity at the top matches the target you intended, and record whether schema `assess` or `assess.schema_migrations` exists. A local schema definition is not evidence that the Azure schema exists.
+The SQL inventory is **T-SQL**, not an Azure CLI command. In the Azure portal, using an authorized account/device, open the exact database identified above: **SQL databases → your target database → Query editor → sign in with the owner-approved Entra account**. Open the repository file [`infra/azure/discovery/sql-inventory.sql`](../infra/azure/discovery/sql-inventory.sql) from the checked-out repository or GitHub, copy its full contents into the Query editor, and select **Run**. The script reads metadata only; it does not read candidate/business rows or modify the database. Save the output privately. Confirm the database identity at the top matches the target you intended, and record whether schema `assess` or `assess.schema_migrations` exists. A local schema definition is not evidence that the Azure schema exists.
 
 If Query editor access is unavailable, stop and ask the database owner to run that read-only script. Do not create a firewall rule, schema, user, or table during OC-0.
 
@@ -352,38 +384,38 @@ The answers below summarize the earlier, incomplete query attempt. Replace them 
 Use the section 6 report template. Share only whether resources exist, regions, SKU/tier classes, whether schema `assess` exists, the provider states, and any errors that blocked a query. Replace all real names with placeholders such as `<RG>`, `<SQL_SERVER>`, `<AI_RESOURCE>`, and `<ACR>`. Do not send subscription IDs, hostnames, emails, keys, connection strings, screenshots with identifying details, or raw CLI output. The backend developer uses the sanitized report to update `docs/PROVISIONING_PLAN.md`.
 
 **Expect:** you can answer every row of the sheet; nothing in Azure changed.
-**Test:** every Azure CLI command used above is a read-only `list`/`show`/`account` query, and the SQL script contains metadata `SELECT` statements only. No provider registration or Azure resource changes occur during OC-0.
+**Test:** base OC-0 Azure CLI commands are read-only `list`/`show`/`account` queries, and the SQL script contains metadata `SELECT` statements only. Provider registration is a separate subscription-level change and is allowed only after the limited staged approval; no Azure resources are created during discovery.
 **If it fails:** *AuthorizationFailed on a list command*: you lack Reader on that group; ask the owner to run that read-only command. *Query editor cannot sign in*: ask the owner to run the T-SQL; never request their password. *A command reports an empty result*: record "no rows returned" and confirm subscription/scope with the owner; do not assume the resource does not exist in another resource group or subscription.
 **Evidence:** your private notes (never the repository).
 
-**Proceed when (go/no-go):** the resource answer sheet and SQL inventory are complete and a sanitized OC-0 report was prepared. Confirm the signed plan is committed/merged to `main` before using provisioning scripts from a fresh clone. Cost Analysis is deferred; the baseline, budget scope, thresholds, and Phi cost remain unresolved. **Nothing is created or changed during OC-0.**
+**Proceed when (go/no-go):** the resource answer sheet and SQL inventory are complete and a sanitized OC-0 report was prepared. If only the Container Apps/ACR inventory is blocked by an unregistered provider, do not infer absence; use the limited provider-registration review below. Cost Analysis is deferred; the baseline, budget scope, thresholds, and Phi cost remain unresolved. **No resources are created during OC-0.**
 **If this is not true, stop here. Do not start the next checkpoint.**
 
 ---
 
 ## OC-PLAN: Review and sign off the provisioning plan
-**Needs:** OC-0 done, and your backend developer has filled `docs/PROVISIONING_PLAN.md` from your report (merged to `main`).
+**Needs:** the sanitized OC-0 report and the revised `docs/PROVISIONING_PLAN.md` on `main`. OC-0 remains incomplete on SQL metadata, Phi ownership/API/pricing, ACS Email, budget scope/alerts, and Container Apps/ACR inventory. The first approval stage is limited to resolving the two provider-blocked inventory gaps; it does not close OC-0 or authorize provisioning.
 
 **Do:**
-1. Open `docs/PROVISIONING_PLAN.md` on GitHub. For **each row** (REUSE / CREATE / IAM-CHANGE / DB-CHANGE / NONE) check with the account owner: (a) the mode is right for what OC-0 found, (b) nothing existing is modified, (c) the estimated cost is believable (compare with the Azure pricing calculator and your Cost Management baseline), (d) the risk is accepted.
-2. Confirm the plan's cost estimates fit the **$50.00/month backend-only** ceiling. Verify the budget scope and thresholds; if either is unclear or the estimates exceed the cap, **do not sign**.
-3. Confirm the list "what is NOT touched" matches your OC-0 notes (portal apps, portal tables, the AI key stays unchanged).
-4. When you **and the account owner** agree, edit the line in the plan from `SIGN-OFF: <not approved>` to exactly:
+1. Open the plan on GitHub. For the **first approval stage only**, review and approve conditionally registering `Microsoft.App` and `Microsoft.ContainerRegistry` if they remain unregistered, then rerunning only read-only ACR/Container Apps inventory. Confirm the exact selected subscription privately with the account owner.
+2. The first approval stage does **not** approve resource creation, updates, role assignments, SQL changes, or provisioning scripts. Do not run any `infra/azure/*.sh` script during this stage.
+3. After the provider registration and inventory, send the sanitized results to your backend developer. The plan must be updated, the staged approval removed, and the complete resource/cost plan reviewed again before any OC-1 provisioning.
+4. For either approval stage, when you **and the account owner** agree, edit the line in the plan from `SIGN-OFF: <not approved>` to exactly:
    `SIGN-OFF: APPROVED by <your initials> and <owner initials> on <YYYY-MM-DD>`
-   Commit it to `main`. (Only a human writes this line. The provisioning scripts refuse to write anything to Azure without it.)
+   Commit it through the approved repository workflow. Only a human writes this line. The scripts only check for the line's presence and do not enforce its scope; follow the staged restrictions above.
 
-**Expect:** the line exists on `main` in the plan.
-**Test:** in Cloud Shell, after a fresh clone: `grep -n "^SIGN-OFF: APPROVED by" docs/PROVISIONING_PLAN.md` prints the line.
+**Expect:** the approved line is on `main` before the corresponding allowed actions.
+**Test:** from the latest `main` clone, verify `grep -n "^SIGN-OFF: APPROVED by" docs/PROVISIONING_PLAN.md` prints the line before acting; after the staged inventory, ensure the staged approval is superseded before any provisioning.
 **If it fails:** *someone disagrees with a row*: change the row (ask your backend developer) and review again; never edit modes to make the plan fit.
 **Evidence:** the commit link.
 
-**Proceed when (go/no-go):** the plan has the exact sign-off line from both people, the grep prints it from a fresh clone, and the plan lists no resource outside the agreed scope.
+**Proceed when (go/no-go):** for provider re-inventory, the first-stage approval is present; for any service/resource provisioning, the post-inventory plan and separate final approval are present. The plan must list no action outside its approved stage.
 **If this is not true, stop here. Do not start the next checkpoint.**
 
 ---
 
 ## OC-1A: Core resources: reuse or create, tags and budget
-**Needs:** OC-PLAN signed. Section 3 variables set.
+**Needs:** the post-inventory, final OC-PLAN approval is on `main`. A provider-registration-only approval is not sufficient. Section 3 variables set and verified against the selected subscription.
 
 **Do 1: verify what the plan says to REUSE (read-only):**
 ```bash
