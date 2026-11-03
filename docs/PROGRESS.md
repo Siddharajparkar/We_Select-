@@ -5,7 +5,7 @@
 **Specification:** `docs/prompts/PROMPT_A_MASTER.md` + `docs/prompts/PROMPT_B_ADDENDUM_OFFLINE_AZURE_READY.md`
 **Guide:** `docs/OFFICE_CONNECTION_AND_TESTING_GUIDE.md`
 **Current State:** Phases 0-6 implemented in Python. The user reports using a personal Azure account and Windows PowerShell CLI, with control of the selected subscription and a $50/month backend cap. Current-account read-only inventory reports `Microsoft.App` and `Microsoft.ContainerRegistry` as `NotRegistered`; Container Apps and ACR inventory are blocked/inconclusive. The prior provisioning approval is superseded and has been removed from the revised plan pending a fresh review. OC-0 remains incomplete; no Azure resources or provider registrations have been changed by this work. Actual prices, budget scope, and Phi cost remain unverified.
-**Last Updated:** 2026-11-03 (Azure OC-0 in progress)
+**Last Updated:** 2026-11-04 (personal-laptop Azure connection in progress)
 
 ---
 
@@ -53,6 +53,14 @@
 - Earlier Cloud Shell/provider reports are historical. The current personal-account PowerShell report is the active provider-state evidence below. ACR list results remain inconclusive while its provider is unregistered.
 - **Personal-account inventory update (2026-11-03):** Cloud Shell authentication was blocked by AADSTS530035. The user confirms control of the selected personal subscription and ran read-only Azure CLI from Windows PowerShell. Provider states: `Microsoft.App` and `Microsoft.ContainerRegistry` are `NotRegistered`; the other six queried providers are `Registered`. Resource listings reported SQL, AI Services, Log Analytics, Application Insights, and Communication Services; storage and ACR returned no rows. Do not infer Container Apps or ACR absence while their providers are unregistered. The prior approval is superseded; fresh plan review is required. No Azure changes were made by the agent.
 - The agent never writes the sign-off line and has not run Azure commands.
+
+## Personal-laptop connection work (2026-11-04)
+
+- Workflow changed: the human signs in to Azure CLI on their own laptop and runs every Azure change from a STEP CARD; the agent runs read-only `az` and verifies. See `AGENTS.md`.
+- Read-only inventory VERIFIED: SQL (West US, SQL auth works, serverless, can be paused), Phi-4-mini-instruct running (v1 route + JSON mode answered a trivial probe), ACS exists without an email domain, providers `Microsoft.App` and `Microsoft.ContainerRegistry` now `Registered`. Missing: Key Vault, Storage, ACR, Container Apps environment, identities, `assess-api`.
+- Decisions: new resources in East US; $50/month budget scoped to this backend; `AI_DAILY_TOKEN_CAP` stays as the per-tenant MVP guard.
+- Code: `api/.env.local` loading outside production (merged); Windows test harness fixed (734 passed, 2 skipped on this laptop); `scripts/dev/` (setup, run, verify, put_secrets, sync_secrets, provision) with tests; Container App YAML uses 20-character secret keys.
+- Stage 3 plan rewritten and awaiting the owner's `SIGN-OFF` line. No Azure resource has been created yet.
 
 ## Next steps
 

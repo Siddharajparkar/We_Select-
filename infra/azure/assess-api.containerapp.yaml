@@ -1,7 +1,8 @@
 # infra/azure/assess-api.containerapp.yaml — desired runtime shape of the assess-api Container App.
 # UNVERIFIED (ledger AZ-020): applied with `az containerapp update --yaml`; field semantics are
 # confirmed only at office checkpoint OC-1F. Placeholders only: never put real names or secrets here.
-# Secrets are referenced by name (secretRef); their values are set by a human in the portal.
+# Secrets are Key Vault references created by scripts/dev/sync_secrets.py (keys are max 20 characters, so three
+# long Key Vault names have short keys: acs-conn, blob-conn, appi-conn). No secret value ever appears here.
 properties:
   configuration:
     activeRevisionsMode: Single
@@ -29,6 +30,9 @@ properties:
           - { name: AI_MODE, value: azure }
           - { name: EMAIL_MODE, value: azure }
           - { name: FILES_MODE, value: azure }
+          - { name: APP_BASE_URL, value: "https://<APP_FQDN>" }
+          - { name: API_INTERNAL_URL, value: "http://localhost:8080" }
+          - { name: BLOB_CONTAINER, value: jd-files }
           - { name: FOUNDRY_API_STYLE, value: v1 }
           - { name: FOUNDRY_DEPLOYMENT, value: "<AI_DEPLOYMENT_NAME>" }
           - { name: DATABASE_URL, secretRef: database-url }
@@ -36,10 +40,10 @@ properties:
           - { name: PLATFORM_KEY, secretRef: platform-key }
           - { name: FOUNDRY_ENDPOINT, secretRef: foundry-endpoint }
           - { name: FOUNDRY_KEY, secretRef: foundry-key }
-          - { name: ACS_CONNECTION_STRING, secretRef: acs-connection-string }
+          - { name: ACS_CONNECTION_STRING, secretRef: acs-conn }
           - { name: ACS_SENDER, secretRef: acs-sender }
-          - { name: BLOB_CONNECTION_STRING, secretRef: blob-connection-string }
-          - { name: APPLICATIONINSIGHTS_CONNECTION_STRING, secretRef: appinsights-connection-string }
+          - { name: BLOB_CONNECTION_STRING, secretRef: blob-conn }
+          - { name: APPLICATIONINSIGHTS_CONNECTION_STRING, secretRef: appi-conn }
         probes:
           - type: Startup
             httpGet: { path: /api/v1/health, port: 8080 }
