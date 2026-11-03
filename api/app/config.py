@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     FOUNDRY_KEY: str = ""
     FOUNDRY_DEPLOYMENT: str = ""
     FOUNDRY_API_VERSION: str = ""  # optional; only used by the azure-deployments style
+    AI_JSON_MODE: bool = True  # send response_format=json_object; set false for models that reject it
     AI_MAX_OUTPUT_TOKENS: int = Field(default=2000, ge=1)
     AI_DAILY_TOKEN_CAP: int = Field(default=200_000, ge=1)  # per tenant per UTC day
     AI_TIMEOUT_SECONDS: float = Field(default=30.0, gt=0)

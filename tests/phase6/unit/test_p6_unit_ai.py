@@ -282,3 +282,114 @@ def test_key_never_appears_in_logs(capsys: pytest.CaptureFixture[str]) -> None:
         p.generate_questions(gen_input())
     out = capsys.readouterr()
     assert "k-secret-1" not in out.out + out.err and "word word" not in out.out + out.err
+
+
+# ── tolerance for small-model answers (seen from Phi-4-mini-instruct on 2026-11-04) ─────────────────────
+OPTS = ["Literal type: int", "Enum type: Integer", "Field type: Optional[int]", "Field type: Union[int, None]"]
+
+
+def _one_mcq(**over: object) -> list[GeneratedQuestion]:
+    return parse_questions(json.dumps({"questions": [mcq(1, options=OPTS, **over)]}), "mcq")
+
+
+def test_correct_given_as_the_option_text_maps_to_its_letter() -> None:
+    (q,) = _one_mcq(correct="Enum type: Integer")
+    assert q.correct == "B" and q.options == OPTS
+
+
+@pytest.mark.parametrize("given", ["C", "c", "C)", "(C)", "Option C", "C. Field type: Optional[int]"])
+def test_letter_forms_are_accepted(given: str) -> None:
+    assert _one_mcq(correct=given)[0].correct == "C"
+
+
+@pytest.mark.parametrize("given", ["Something else entirely", "E", "", "   ", "Field type"])
+def test_a_correct_answer_that_matches_nothing_is_still_rejected(given: str) -> None:
+    with pytest.raises(AiOutputInvalid):
+        _one_mcq(correct=given)
+
+
+def test_correct_text_matching_two_identical_looking_options_is_rejected() -> None:
+    # two options that differ only by punctuation are not "distinct enough" to name one: the text is ambiguous
+    opts = ["Use a list", "use a list!", "Use a dict", "Use a set"]
+    with pytest.raises(AiOutputInvalid):
+        parse_questions(json.dumps({"questions": [mcq(1, options=opts, correct="Use a list")]}), "mcq")
+
+
+def test_options_wrapped_as_single_key_objects_are_unwrapped() -> None:
+    wrapped = [{"A": "first"}, {"B": "second"}, {"C": "third"}, {"D": "fourth"}]
+    (q,) = parse_questions(json.dumps({"questions": [mcq(1, options=wrapped, correct="C")]}), "mcq")
+    assert q.options == ["first", "second", "third", "fourth"] and q.correct == "C"
+
+
+def test_letter_prefixes_are_stripped_only_when_all_four_carry_them() -> None:
+    labelled = ["A) first", "B) second", "C) third", "D) fourth"]
+    (q,) = parse_questions(json.dumps({"questions": [mcq(1, options=labelled, correct="B")]}), "mcq")
+    assert q.options == ["first", "second", "third", "fourth"]
+    partial = ["A) first", "second", "C) third", "fourth"]
+    (q2,) = parse_questions(json.dumps({"questions": [mcq(1, options=partial, correct="B")]}), "mcq")
+    assert q2.options == partial  # a lone "A) " could be real text; leave it
+
+
+def test_the_exact_phi_answer_shape_now_validates_end_to_end() -> None:
+    raw = json.dumps(
+        {
+            "questions": [
+                {
+                    "question": "Which Pydantic field type enforces an integer?",
+                    "options": OPTS,
+                    "correct": "Literal type: int",
+                    "explanation": "It constrains the value.",
+                }
+            ]
+        }
+    )
+    p, _ = provider(lambda _req: chat(raw, 584))
+    qs, tokens = p.generate_questions_with_usage(gen_input(count=1))
+    assert len(qs) == 1 and qs[0].correct == "A" and tokens == 584
+
+
+def test_prompt_demands_a_bare_letter() -> None:
+    msg = prompts.build_generate_messages(gen_input("mcq"))[1]["content"]
+    assert "never the option text" in msg and "WITHOUT" in msg
+
+
+def test_json_mode_can_be_switched_off() -> None:
+    seen: list[dict[str, object]] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(req.content))
+        return chat(json.dumps({"questions": [mcq(1)]}), 10)
+
+    p, _ = provider(handler, AI_JSON_MODE=False)
+    p.generate_questions(gen_input(count=1))
+    assert "response_format" not in seen[0]
+    p2, _ = provider(handler)
+    p2.generate_questions(gen_input(count=1))
+    assert seen[1]["response_format"] == {"type": "json_object"}
+
+
+def test_one_stalled_call_is_retried_once_then_succeeds() -> None:
+    calls: list[int] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        if len(calls) == 1:
+            raise httpx.ReadTimeout("stalled", request=req)
+        return chat(json.dumps({"questions": [mcq(1)]}), 50)
+
+    p, _ = provider(handler)
+    qs, tokens = p.generate_questions_with_usage(gen_input(count=1))
+    assert len(calls) == 2 and len(qs) == 1 and tokens == 50
+
+
+def test_two_stalled_calls_in_a_row_raise_a_timeout_error() -> None:
+    calls: list[int] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        raise httpx.ReadTimeout("stalled", request=req)
+
+    p, _ = provider(handler)
+    with pytest.raises(ProviderError) as info:
+        p.generate_questions_with_usage(gen_input(count=1))
+    assert info.value.code == "TIMEOUT" and len(calls) == 2
