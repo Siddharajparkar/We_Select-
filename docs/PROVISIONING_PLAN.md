@@ -18,7 +18,7 @@
 > The provisioning scripts check only for an approval line; they do not bind approval to a subscription. Do not run them against a different subscription until this plan is freshly reviewed and approved.
 
 ```
-SIGN-OFF: <not approved>
+SIGN-OFF: APPROVED by SS and SS on 2026-11-03
 ```
 
 *(Only the human reviewer and account owner may write an approval line after reviewing the exact scope of that stage. The first stage is limited to conditional provider registration and read-only inventory; it does not approve provisioning. A separate final approval requires completed OC-0 evidence, resource scope, provider states, and cost/budget assumptions.)*
