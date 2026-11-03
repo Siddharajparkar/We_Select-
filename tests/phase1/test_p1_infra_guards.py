@@ -85,7 +85,18 @@ def test_plan_signoff_has_a_valid_human_approval_or_placeholder() -> None:
 
 @pytest.mark.skipif(not BASH_AVAILABLE, reason="Bash-dependent script check runs in CI")
 def test_write_commands_are_blocked_without_signoff_even_with_dry_run_off(tmp_path: Path) -> None:
-    """Behavioural check: DRY_RUN=0 + unsigned plan => exit 1 and the stubbed `az` is never asked to write."""
+    """DRY_RUN=0 with an unsigned plan must block writes, regardless of the real plan's approval."""
+    test_repo = tmp_path / "unsigned-repo"
+    test_infra = test_repo / "infra" / "azure"
+    test_docs = test_repo / "docs"
+    test_infra.mkdir(parents=True)
+    test_docs.mkdir()
+    (test_docs / "PROVISIONING_PLAN.md").write_text("SIGN-OFF: <not approved>\n", encoding="utf-8")
+    shutil.copy2(INFRA / "_run.sh", test_infra / "_run.sh")
+    script = test_infra / "30-blob.sh"
+    shutil.copy2(INFRA / "30-blob.sh", script)
+    subprocess.run(["git", "init", "-q", str(test_repo)], check=True, capture_output=True, text=True)  # noqa: S603,S607
+
     stub = tmp_path / "az"
     stub.write_text('#!/bin/sh\necho "AZ_STUB $*" >> "$AZ_LOG"\n')
     stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
@@ -97,7 +108,7 @@ def test_write_commands_are_blocked_without_signoff_even_with_dry_run_off(tmp_pa
         "MODE_BLOB": "create",
         "AZ_LOG": str(log),
     }
-    res = subprocess.run(["bash", str(INFRA / "30-blob.sh")], env=env, capture_output=True, text=True, cwd=REPO)  # noqa: S603,S607
+    res = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True, cwd=test_repo)  # noqa: S603,S607
     assert res.returncode == 1
     assert "No sign-off found" in res.stderr
     assert not log.exists(), "no az command may run before approval"

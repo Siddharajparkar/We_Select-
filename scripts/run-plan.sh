@@ -22,13 +22,18 @@ echo "# Mode: DRY_RUN=1 (no writes executed, sign-off gate enforced)"
 echo ""
 
 echo "================================================================================"
-echo "PART 1: DEFAULT / REUSE MODES (verification of existing shared resources)"
+echo "PART 1: DEFAULT / REUSE MODES (read-only verification where supported)"
 echo "================================================================================"
 echo ""
 
 for s in "${scripts[@]}"; do
   echo "--- $(basename "$s") ---"
-  bash "$s"
+  if [[ "$(basename "$s")" == "40-ai.sh" ]]; then
+    # The selected Serverless API has no supported CLI reuse check in this script.
+    MODE_AI="${MODE_AI:-skip}" bash "$s"
+  else
+    bash "$s"
+  fi
   echo ""
 done
 
