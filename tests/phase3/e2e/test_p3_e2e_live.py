@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 import sys
 import time
@@ -19,7 +18,7 @@ pytestmark = pytest.mark.e2e
 REPO = Path(__file__).resolve().parents[3]
 POSTMAN = REPO / "tests" / "phase3" / "postman"
 VERSION = "e2e-sha-0001"  # set by conftest.start_server
-BASH_AVAILABLE = shutil.which("bash") is not None
+from helpers_bash import BASH, BASH_AVAILABLE
 
 
 def test_health_over_a_real_socket(live_server: str) -> None:
@@ -68,10 +67,10 @@ def test_e2e_harness_detects_a_stale_revision(live_server: str) -> None:
 
 @pytest.mark.skipif(not BASH_AVAILABLE, reason="Bash-dependent smoke check runs in CI")
 def test_smoke_script_against_the_real_server(live_server: str) -> None:
-    ok = subprocess.run(["bash", str(REPO / "scripts/e2e/smoke.sh")], capture_output=True, text=True, timeout=30,  # noqa: S603,S607
+    ok = subprocess.run([str(BASH), (REPO / "scripts/e2e/smoke.sh").as_posix()], capture_output=True, text=True, timeout=30,  # noqa: S603,S607
                         env={"PATH": "/usr/bin:/bin:/usr/local/bin", "API_URL": live_server, "EXPECTED_VERSION": VERSION})  # fmt: skip
     assert ok.returncode == 0 and "SMOKE PASS" in ok.stdout
-    bad = subprocess.run(["bash", str(REPO / "scripts/e2e/smoke.sh")], capture_output=True, text=True, timeout=30,  # noqa: S603,S607
+    bad = subprocess.run([str(BASH), (REPO / "scripts/e2e/smoke.sh").as_posix()], capture_output=True, text=True, timeout=30,  # noqa: S603,S607
                          env={"PATH": "/usr/bin:/bin:/usr/local/bin", "API_URL": live_server, "EXPECTED_VERSION": "nope", "SMOKE_TIMEOUT_S": "2", "SMOKE_SLEEP_S": "1"})  # fmt: skip
     assert bad.returncode == 1
 

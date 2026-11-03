@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import http.server
 import os
-import shutil
 import subprocess
 import sys
 import threading
@@ -16,7 +15,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[3]
 SMOKE = REPO / "scripts" / "e2e" / "smoke.sh"
 RUNNER = REPO / "scripts" / "e2e" / "run.py"
-BASH_AVAILABLE = shutil.which("bash") is not None
+from helpers_bash import BASH, BASH_AVAILABLE
 
 
 class _Handler(http.server.BaseHTTPRequestHandler):
@@ -52,7 +51,7 @@ def stub() -> Iterator[tuple[str, type[_Handler]]]:
 
 def smoke(url: str, expected: str, timeout: str = "3") -> subprocess.CompletedProcess[str]:
     env = {**os.environ, "API_URL": url, "EXPECTED_VERSION": expected, "SMOKE_TIMEOUT_S": timeout, "SMOKE_SLEEP_S": "1"}
-    return subprocess.run(["bash", str(SMOKE)], env=env, capture_output=True, text=True, timeout=30)  # noqa: S603,S607
+    return subprocess.run([str(BASH), (SMOKE).as_posix()], env=env, capture_output=True, text=True, timeout=30)  # noqa: S603,S607
 
 
 @pytest.mark.skipif(not BASH_AVAILABLE, reason="Bash-dependent smoke check runs in CI")
@@ -98,7 +97,7 @@ def test_smoke_retries_until_service_comes_up(stub) -> None:  # type: ignore[no-
 @pytest.mark.skipif(not BASH_AVAILABLE, reason="Bash-dependent smoke check runs in CI")
 def test_smoke_requires_its_inputs() -> None:
     env = {k: v for k, v in os.environ.items() if k not in {"API_URL", "EXPECTED_VERSION"}}
-    r = subprocess.run(["bash", str(SMOKE)], env=env, capture_output=True, text=True)  # noqa: S603,S607
+    r = subprocess.run([str(BASH), (SMOKE).as_posix()], env=env, capture_output=True, text=True)  # noqa: S603,S607
     assert r.returncode != 0 and "API_URL is required" in r.stderr
 
 
