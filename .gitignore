@@ -27,3 +27,8 @@ node_modules/
 dist/
 build/
 out/
+
+# Azure / developer files that must never be committed
+config/*.local.env
+api/.env.local
+.claude/settings.local.json

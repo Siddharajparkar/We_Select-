@@ -28,8 +28,8 @@
    - The user reports using their personal Azure account and Windows PowerShell Azure CLI for the selected subscription, and confirms they control that subscription.
    - Azure Cloud Shell authentication was blocked with AADSTS530035. Do not retry sign-in or attempt to bypass tenant security settings; use the supported account/device path or contact the tenant administrator.
    - This personal-account context supersedes the earlier organization-laptop-only workflow for current Azure discovery, but all Azure changes remain subject to fresh review and approval in the provisioning plan.
-2. **Workflow separation:**
-   - The user runs Azure commands manually from an authorized account/device. The coding agent has no Azure access and must not run Azure CLI commands or contact Azure resources.
+2. **Workflow separation (updated 2026-11-03):**
+   - The user signs in to Azure CLI in their own terminal and runs every Azure-changing command. The coding agent may run read-only `az` commands that cannot reveal secrets, and may make a minimal, non-secret test call to a model endpoint using a short-lived Entra token; it never runs `az login` and never reads or prints keys.
    - Application code, tests, workflows, scripts, and documentation are developed offline; CI runs on GitHub Actions.
 3. **Credential protection:**
    - No Azure passwords, client secrets, MFA codes, subscription/tenant IDs, hostnames, or connection strings shall be requested from the user or committed to Git, local files, or logs.

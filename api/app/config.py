@@ -7,7 +7,10 @@ backend (Prompt B, B3 row 4).
 
 from __future__ import annotations
 
+import os
+from collections.abc import Mapping
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
@@ -128,9 +131,39 @@ class Settings(BaseSettings):
         return self.APP_ENV == "production"
 
 
+ENV_LOCAL_PATH = Path(__file__).resolve().parents[1] / ".env.local"
+IGNORE_ENV_LOCAL_VAR = "ASSESS_IGNORE_ENV_LOCAL"
+ENV_FILE_VAR = "ASSESS_ENV_FILE"
+
+
+def env_local_file(environ: Mapping[str, str] | None = None) -> Path | None:
+    """The developer env file to load, or ``None``.
+
+    Developer convenience only: never when ``APP_ENV=production`` (checked here and again on the result),
+    never when ``ASSESS_IGNORE_ENV_LOCAL=1`` (tests set this), and only if the file exists.
+    Real environment variables always win over values in the file.
+    """
+    env = os.environ if environ is None else environ
+    if env.get("APP_ENV") == "production" or env.get(IGNORE_ENV_LOCAL_VAR) == "1":
+        return None
+    path = Path(env.get(ENV_FILE_VAR) or ENV_LOCAL_PATH)
+    return path if path.is_file() else None
+
+
 def load_settings(**overrides: object) -> Settings:
-    """Build settings from the environment (plus overrides); raise ConfigError on problems."""
+    """Build settings from the environment (plus overrides, plus a developer env file); raise ConfigError."""
+    env_file = env_local_file()
     try:
+        if env_file is not None:
+            from dotenv import dotenv_values
+
+            if dotenv_values(env_file).get("APP_ENV") == "production":
+                raise ConfigError("production never loads a local env file; set APP_ENV in the real environment")
+            settings = Settings(_env_file=env_file, _env_file_encoding="utf-8", **overrides)  # type: ignore[arg-type,call-arg]
+            if settings.is_production:
+                # The file itself asked for production: refuse rather than run production from a laptop file.
+                raise ConfigError("production never loads a local env file; set APP_ENV in the real environment")
+            return settings
         return Settings(**overrides)  # type: ignore[arg-type]
     except ValueError as exc:  # pydantic.ValidationError is a ValueError
         raise ConfigError(_summarise(exc)) from None
