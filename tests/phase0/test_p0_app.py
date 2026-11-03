@@ -23,6 +23,17 @@ def test_health_returns_exact_contract_body(client: TestClient) -> None:
     assert r.headers["content-type"].startswith("application/json")
 
 
+@pytest.mark.parametrize("path", ["/", "/docs"])
+def test_development_docs_shortcuts_redirect_to_api_docs(client: TestClient, path: str) -> None:
+    response = client.get(path, follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/api/v1/docs"
+
+    docs = client.get(path)
+    assert docs.status_code == 200
+    assert "swagger-ui" in docs.text
+
+
 def test_health_sets_version_and_no_store_headers(client: TestClient) -> None:
     r = client.get("/api/v1/health")
     assert r.headers["x-app-version"] == "test-sha-123"
@@ -151,4 +162,6 @@ def test_openapi_docs_enabled_in_development_disabled_in_production(settings) ->
 
     # Inject memory repos so no SQL connection is attempted; providers faked out for the same reason.
     app = create_app(prod, repos=create_repositories("memory"), providers=create_providers(settings))
-    assert TestClient(app).get("/api/v1/openapi.json").status_code == 404
+    production_client = TestClient(app)
+    for path in ("/", "/docs", "/api/v1/docs", "/api/v1/openapi.json"):
+        assert production_client.get(path).status_code == 404

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 import time
@@ -18,6 +19,7 @@ pytestmark = pytest.mark.e2e
 REPO = Path(__file__).resolve().parents[3]
 POSTMAN = REPO / "tests" / "phase3" / "postman"
 VERSION = "e2e-sha-0001"  # set by conftest.start_server
+BASH_AVAILABLE = shutil.which("bash") is not None
 
 
 def test_health_over_a_real_socket(live_server: str) -> None:
@@ -64,6 +66,7 @@ def test_e2e_harness_detects_a_stale_revision(live_server: str) -> None:
     assert r.returncode == 1 and "old revision still answering" in r.stdout
 
 
+@pytest.mark.skipif(not BASH_AVAILABLE, reason="Bash-dependent smoke check runs in CI")
 def test_smoke_script_against_the_real_server(live_server: str) -> None:
     ok = subprocess.run(["bash", str(REPO / "scripts/e2e/smoke.sh")], capture_output=True, text=True, timeout=30,  # noqa: S603,S607
                         env={"PATH": "/usr/bin:/bin:/usr/local/bin", "API_URL": live_server, "EXPECTED_VERSION": VERSION})  # fmt: skip
@@ -88,6 +91,7 @@ def test_postman_e2e_fails_when_the_deployed_version_is_wrong(live_server: str) 
 
 
 # ── process lifecycle ─────────────────────────────────────────────────────────────────────
+@pytest.mark.skipif(sys.platform == "win32", reason="SIGTERM shutdown behavior is exercised on Linux CI")
 def test_sigterm_stops_the_server_within_10_seconds() -> None:
     proc, base = start_server()
     wait_ready(base, proc)

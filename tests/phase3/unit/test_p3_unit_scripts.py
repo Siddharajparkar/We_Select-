@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import http.server
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -15,6 +16,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[3]
 SMOKE = REPO / "scripts" / "e2e" / "smoke.sh"
 RUNNER = REPO / "scripts" / "e2e" / "run.py"
+BASH_AVAILABLE = shutil.which("bash") is not None
 
 
 class _Handler(http.server.BaseHTTPRequestHandler):
@@ -53,12 +55,14 @@ def smoke(url: str, expected: str, timeout: str = "3") -> subprocess.CompletedPr
     return subprocess.run(["bash", str(SMOKE)], env=env, capture_output=True, text=True, timeout=30)  # noqa: S603,S607
 
 
+@pytest.mark.skipif(not BASH_AVAILABLE, reason="Bash-dependent smoke check runs in CI")
 def test_smoke_passes_when_new_revision_answers(stub) -> None:  # type: ignore[no-untyped-def]
     url, _ = stub
     r = smoke(url, "sha-new")
     assert r.returncode == 0 and "SMOKE PASS" in r.stdout
 
 
+@pytest.mark.skipif(not BASH_AVAILABLE, reason="Bash-dependent smoke check runs in CI")
 def test_smoke_fails_when_old_revision_is_still_answering(stub) -> None:  # type: ignore[no-untyped-def]
     url, h = stub
     h.version = "sha-OLD"
@@ -66,6 +70,7 @@ def test_smoke_fails_when_old_revision_is_still_answering(stub) -> None:  # type
     assert r.returncode == 1 and "SMOKE FAIL" in r.stderr and "sha-OLD" in r.stdout
 
 
+@pytest.mark.skipif(not BASH_AVAILABLE, reason="Bash-dependent smoke check runs in CI")
 def test_smoke_fails_on_wrong_body_and_on_error_status(stub) -> None:  # type: ignore[no-untyped-def]
     url, h = stub
     h.body = b'{"status":"degraded"}'
@@ -74,6 +79,7 @@ def test_smoke_fails_on_wrong_body_and_on_error_status(stub) -> None:  # type: i
     assert smoke(url, "sha-new").returncode == 1
 
 
+@pytest.mark.skipif(not BASH_AVAILABLE, reason="Bash-dependent smoke check runs in CI")
 def test_smoke_retries_until_service_comes_up(stub) -> None:  # type: ignore[no-untyped-def]
     url, h = stub
     h.status = 503
@@ -89,6 +95,7 @@ def test_smoke_retries_until_service_comes_up(stub) -> None:  # type: ignore[no-
     assert r.returncode == 0 and "waiting" in r.stdout
 
 
+@pytest.mark.skipif(not BASH_AVAILABLE, reason="Bash-dependent smoke check runs in CI")
 def test_smoke_requires_its_inputs() -> None:
     env = {k: v for k, v in os.environ.items() if k not in {"API_URL", "EXPECTED_VERSION"}}
     r = subprocess.run(["bash", str(SMOKE)], env=env, capture_output=True, text=True)  # noqa: S603,S607
