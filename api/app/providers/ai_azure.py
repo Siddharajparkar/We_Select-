@@ -50,14 +50,20 @@ class AzureAiProvider:
             "messages": messages,
             "temperature": temperature,
             "max_tokens": s.AI_MAX_OUTPUT_TOKENS,
-            "response_format": {"type": "json_object"},
         }
+        if s.AI_JSON_MODE:
+            body["response_format"] = {"type": "json_object"}
         headers = {"Content-Type": "application/json", "api-key": s.FOUNDRY_KEY}
         for attempt in (1, 2):
             try:
                 with httpx.Client(timeout=s.AI_TIMEOUT_SECONDS, transport=self._transport) as client:
                     res = client.post(url, headers=headers, json=body)
             except httpx.TimeoutException:
+                if attempt == 1:
+                    # Measured on the real Phi deployment: roughly 1 call in 7 stalls. One immediate retry is cheap
+                    # and avoids re-running a whole job.
+                    logger.warn("ai_timeout_retry", timeout_seconds=s.AI_TIMEOUT_SECONDS)
+                    continue
                 raise ProviderError("The AI service did not answer in time", "TIMEOUT") from None
             except httpx.HTTPError:
                 raise ProviderError("The AI service could not be reached", "UPSTREAM") from None

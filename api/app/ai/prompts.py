@@ -38,10 +38,15 @@ _SHAPES: dict[str, str] = {
 }
 
 _RULES: dict[str, str] = {
-    "mcq": "Each question has exactly 4 distinct options, exactly one of which is correct. `correct` is A, B, C or D.",
+    "mcq": (
+        "Each question has exactly 4 distinct options, exactly one of which is correct. `options` is a list of 4 plain "
+        'strings WITHOUT "A)" or "B." prefixes. `correct` is ONLY the single capital letter A, B, C or D of the right '
+        "option (never the option text)."
+    ),
     "cognitive": (
         "Each question tests reasoning (logic, patterns, numbers or situational judgement) rather than recall of "
-        "facts. Exactly 4 distinct options, exactly one correct. `correct` is A, B, C or D."
+        "facts. Exactly 4 distinct options, exactly one correct. `options` is a list of 4 plain strings WITHOUT "
+        '"A)" prefixes. `correct` is ONLY the single capital letter A, B, C or D (never the option text).'
     ),
     "descriptive": (
         "Each question needs a free-text answer. `rubric` is a descriptive marking guide, `maxScore` is an integer "
