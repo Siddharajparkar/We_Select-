@@ -49,7 +49,7 @@ def probe_config(env: Mapping[str, str] | None = None) -> ProbeResult:
         "BLOB_CONNECTION_STRING", "BLOB_CONTAINER", "APP_BASE_URL", "API_INTERNAL_URL",
     ]  # fmt: skip
     if env.get("AI_MODE") == "azure":
-        required += ["FOUNDRY_ENDPOINT", "FOUNDRY_KEY", "FOUNDRY_DEPLOYMENT"]
+        required += ["FOUNDRY_ENDPOINT", "FOUNDRY_KEY", "FOUNDRY_DEPLOYMENT", "FOUNDRY_API_STYLE"]
     if env.get("EMAIL_MODE") == "azure":
         required += ["ACS_CONNECTION_STRING", "ACS_SENDER"]
     if env.get("APPLICATIONINSIGHTS_CONNECTION_STRING"):
@@ -141,7 +141,7 @@ def probe_blob(env: Mapping[str, str] | None = None) -> ProbeResult:
         return ProbeResult("blob", "FAIL", _ms(start), _safe(str(exc)))
 
 
-def foundry_url(endpoint: str, deployment: str, style: str = "v1", api_version: str = "") -> str:
+def foundry_url(endpoint: str, deployment: str, style: str, api_version: str = "") -> str:
     base = endpoint.rstrip("/")
     if style == "azure-deployments":
         suffix = f"?api-version={api_version}" if api_version else ""
@@ -154,7 +154,9 @@ def probe_foundry(env: Mapping[str, str] | None = None) -> ProbeResult:
     endpoint, key, deployment = env.get("FOUNDRY_ENDPOINT"), env.get("FOUNDRY_KEY"), env.get("FOUNDRY_DEPLOYMENT")
     if not (endpoint and key and deployment):
         return ProbeResult("foundry", "FAIL", 0, "FOUNDRY_ENDPOINT / FOUNDRY_KEY / FOUNDRY_DEPLOYMENT not set")
-    style = env.get("FOUNDRY_API_STYLE") or "v1"
+    style = env.get("FOUNDRY_API_STYLE")
+    if style not in ("v1", "azure-deployments"):
+        return ProbeResult("foundry", "FAIL", 0, "FOUNDRY_API_STYLE must be explicitly set to a supported style")
     url = foundry_url(endpoint, deployment, style, env.get("FOUNDRY_API_VERSION", ""))
     start = time.perf_counter()
     try:

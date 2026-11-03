@@ -21,4 +21,4 @@ SQL Server repositories and T-SQL (claim query, ISJSON, filtered index, parallel
 ## Decisions and open questions
 - The API lives in `api/` (the repo already had this directory); `backend/` is untouched.
 - Folder skeleton the owner planned to share was not received; layout follows the existing repo.
-- $25/month budget scope and whether to make the repository private are still open.
+- Historical report: the $25/month cap recorded when this report was written was superseded on 2026-11-03 by the current $50/month backend planning cap. Actual budget scope/thresholds remain unverified; see `docs/decisions.md` and `docs/PROVISIONING_PLAN.md`.

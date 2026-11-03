@@ -100,7 +100,9 @@ def test_cookie_secure_defaults_on_and_cannot_be_disabled_in_production() -> Non
     assert load_settings().COOKIE_SECURE is True
     prod = dict(
         APP_ENV="production", AI_MODE="azure", EMAIL_MODE="azure", FILES_MODE="azure", REPO_BACKEND="sql",
-        DATABASE_URL="x", FOUNDRY_ENDPOINT="e", FOUNDRY_KEY="k", ACS_CONNECTION_STRING="c", ACS_SENDER="s",
+        DATABASE_URL="x", FOUNDRY_ENDPOINT="e", FOUNDRY_KEY="k", FOUNDRY_DEPLOYMENT="phi-test-deployment",
+        FOUNDRY_API_STYLE="v1",
+        ACS_CONNECTION_STRING="c", ACS_SENDER="s",
         BLOB_CONNECTION_STRING="b", SESSION_SECRET="a" * 40, PLATFORM_KEY="b" * 40,
     )  # fmt: skip
     assert load_settings(**prod).COOKIE_SECURE is True

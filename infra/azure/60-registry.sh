@@ -22,7 +22,7 @@ case "${MODE_ACR}" in
     echo "REUSE: Registry verified."
     ;;
   create)
-    echo "--- Creating Container Registry (Basic SKU, cost-optimal for \$25 ceiling) ---"
+    echo "--- Creating Container Registry (Basic SKU, within the approved \$50 planning ceiling) ---"
     run "az acr create -g '${RG}' -n '${ACR}' -l '${LOC_APP}' --sku Basic --admin-enabled false"
     echo "CREATE: Registry created. Login server: ${ACR}.azurecr.io"
     ;;

@@ -18,7 +18,7 @@ on:
         default: ''
         type: string
       with_ai:
-        description: 'Run checks that call the real AI deployment (phase 6 generation; a few GPT-4o calls)'
+        description: 'Run checks that call the real AI deployment (phase 6 generation; Microsoft Phi)'
         required: false
         default: false
         type: boolean

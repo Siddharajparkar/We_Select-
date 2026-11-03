@@ -16,8 +16,10 @@ LOC_APP="${LOC_APP:-eastus}"
 LAW="${LAW:-<LAW>}"          # Log Analytics workspace name
 APPI="${APPI:-<APPI>}"       # Application Insights name
 BUDGET_NAME="${BUDGET_NAME:-assess-api-budget}"
-BUDGET_AMOUNT="${BUDGET_AMOUNT:-25}"
+BUDGET_AMOUNT="${BUDGET_AMOUNT:-50}"
 BUDGET_EMAIL="${BUDGET_EMAIL:-<BUDGET_EMAIL>}"   # filled at office, never committed
+MODE_BUDGET="${MODE_BUDGET:-manual}"
+BUDGET_RG_SCOPE_CONFIRMED="${BUDGET_RG_SCOPE_CONFIRMED:-0}"
 
 MODE_CORE="${MODE_CORE:-reuse}"
 
@@ -35,13 +37,25 @@ case "${MODE_CORE}" in
     echo "REUSE: Core infrastructure verified."
     ;;
   create)
+    if [[ "${MODE_BUDGET}" != "manual" && "${MODE_BUDGET}" != "resource-group" ]]; then
+      echo "ERROR: Unknown MODE_BUDGET='${MODE_BUDGET}'. Use manual|resource-group." >&2
+      exit 1
+    fi
+    if [[ "${MODE_BUDGET}" == "resource-group" && "${BUDGET_RG_SCOPE_CONFIRMED}" != "1" ]]; then
+      echo "ERROR: the budget command scopes the entire resource group; confirm it is backend-only in the signed plan first." >&2
+      exit 1
+    fi
     echo "--- Creating Log Analytics workspace ---"
     run "az monitor log-analytics workspace create -g '${RG}' -n '${LAW}' -l '${LOC_APP}' --sku PerGB2018 --retention-time 30"
     echo "--- Creating Application Insights ---"
     run "az monitor app-insights component create -g '${RG}' -n '${APPI}' -l '${LOC_APP}' --application-type web --workspace \"\$(az monitor log-analytics workspace show -g '${RG}' -n '${LAW}' --query customerId -o tsv)\""
-    echo "--- Creating budget (alerts at 50%, 80%, 100%) ---"
-    run "az consumption budget create --resource-group '${RG}' --budget-name '${BUDGET_NAME}' --amount ${BUDGET_AMOUNT} --category Cost --time-grain Monthly --notifications '{\"alert50\":{\"enabled\":true,\"operator\":\"GreaterThanOrEqualTo\",\"threshold\":50,\"contactEmails\":[\"${BUDGET_EMAIL}\"],\"thresholdType\":\"Actual\"},\"alert80\":{\"enabled\":true,\"operator\":\"GreaterThanOrEqualTo\",\"threshold\":80,\"contactEmails\":[\"${BUDGET_EMAIL}\"],\"thresholdType\":\"Actual\"},\"alert100\":{\"enabled\":true,\"operator\":\"GreaterThanOrEqualTo\",\"threshold\":100,\"contactEmails\":[\"${BUDGET_EMAIL}\"],\"thresholdType\":\"Actual\"}}'"
-    echo "CREATE: Core infrastructure created."
+    if [[ "${MODE_BUDGET}" == "resource-group" ]]; then
+      echo "--- Creating resource-group budget (scope confirmed backend-only) ---"
+      run "az consumption budget create --resource-group '${RG}' --budget-name '${BUDGET_NAME}' --amount ${BUDGET_AMOUNT} --category Cost --time-grain Monthly --notifications '{\"alert50\":{\"enabled\":true,\"operator\":\"GreaterThanOrEqualTo\",\"threshold\":50,\"contactEmails\":[\"${BUDGET_EMAIL}\"],\"thresholdType\":\"Actual\"},\"alert80\":{\"enabled\":true,\"operator\":\"GreaterThanOrEqualTo\",\"threshold\":80,\"contactEmails\":[\"${BUDGET_EMAIL}\"],\"thresholdType\":\"Actual\"},\"alert100\":{\"enabled\":true,\"operator\":\"GreaterThanOrEqualTo\",\"threshold\":100,\"contactEmails\":[\"${BUDGET_EMAIL}\"],\"thresholdType\":\"Actual\"}}'"
+    else
+      echo "BUDGET NOT CREATED: configure and verify the backend-only budget scope separately before sign-off."
+    fi
+    echo "CREATE: Core telemetry commands processed; see budget status above."
     ;;
   *)
     echo "ERROR: Unknown MODE_CORE='${MODE_CORE}'. Use reuse|create|skip." >&2

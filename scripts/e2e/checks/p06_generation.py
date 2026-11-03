@@ -1,7 +1,7 @@
 """Phase 6 live checks: AI generation jobs, question review and approval (endpoints 15-22).
 
 Locally the server runs the fake AI. Against Azure these checks call the real model, so they only run
-with ``--with-ai true`` (a handful of GPT-4o calls, well inside the daily allowance)."""
+with ``--with-ai true`` (a small number of calls to the owner-approved Microsoft Phi deployment)."""
 
 from __future__ import annotations
 

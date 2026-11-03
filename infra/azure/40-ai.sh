@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# infra/azure/40-ai.sh — Verify existing AI Foundry resource and deployment
-# Phase 1, OC-1D. REUSE only — never creates or modifies the AI resource.
+# infra/azure/40-ai.sh — Legacy Azure Cognitive Services account deployment check
+# Not applicable to the selected Phi Serverless API deployment; use the Foundry portal.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_run.sh"
@@ -9,12 +9,18 @@ RG="${RG:-<RG>}"
 AIACC="${AIACC:-<AI_RESOURCE>}"             # existing AI Foundry account name
 FOUNDRY_DEPLOYMENT="${FOUNDRY_DEPLOYMENT:-<AI_DEPLOYMENT_NAME>}"
 
-MODE_AI="${MODE_AI:-reuse}"
+MODE_AI="${MODE_AI:-serverless-api}"
 
 echo "=== 40-ai.sh  MODE=${MODE_AI}  DRY_RUN=${DRY_RUN} ==="
-echo "NOTE: This script is REUSE-only. The AI resource already exists."
+echo "NOTE: reuse mode is only for Azure Cognitive Services account deployments."
 
 case "${MODE_AI}" in
+  serverless-api)
+    echo "ERROR: this script checks Cognitive Services account deployments, not the Phi Serverless API." >&2
+    echo "Verify the model, deployment, endpoint, API contract, and pricing in the Foundry portal." >&2
+    echo "Do not use MODE_AI=reuse for the selected Serverless API deployment." >&2
+    exit 2
+    ;;
   skip)
     echo "SKIP: AI step skipped."
     ;;

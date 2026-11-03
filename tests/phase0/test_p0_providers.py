@@ -142,6 +142,8 @@ def test_factory_returns_azure_implementations_when_configured() -> None:
 
     s = load_settings(
         AI_MODE="azure", FOUNDRY_ENDPOINT="https://x.invalid", FOUNDRY_KEY="k",
+        FOUNDRY_API_STYLE="v1",
+        FOUNDRY_DEPLOYMENT="phi-test-deployment",
         EMAIL_MODE="azure", ACS_CONNECTION_STRING="endpoint=x;accesskey=y", ACS_SENDER="a@b.invalid",
     )  # fmt: skip
     p = create_providers(s)

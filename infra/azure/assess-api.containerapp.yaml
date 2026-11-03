@@ -30,7 +30,7 @@ properties:
           - { name: EMAIL_MODE, value: azure }
           - { name: FILES_MODE, value: azure }
           - { name: FOUNDRY_API_STYLE, value: v1 }
-          - { name: FOUNDRY_DEPLOYMENT, value: gpt-4o }
+          - { name: FOUNDRY_DEPLOYMENT, value: "<AI_DEPLOYMENT_NAME>" }
           - { name: DATABASE_URL, secretRef: database-url }
           - { name: SESSION_SECRET, secretRef: session-secret }
           - { name: PLATFORM_KEY, secretRef: platform-key }

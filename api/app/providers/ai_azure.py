@@ -1,4 +1,4 @@
-"""Azure AI Foundry / Azure OpenAI provider (GPT-4o) over the v1 chat-completions route.
+"""Azure AI Foundry provider over the configured chat-completions route.
 
 UNVERIFIED against the real service (ledger AZ-027): unit tests drive it through ``httpx.MockTransport``.
 Secrets: the key is sent only in the ``api-key`` header and never logged; neither are prompts or JD text.
