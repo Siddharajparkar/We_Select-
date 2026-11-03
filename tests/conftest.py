@@ -20,6 +20,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+# A developer's real api/.env.local must never leak into the test run.
+os.environ["ASSESS_IGNORE_ENV_LOCAL"] = "1"
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 API_DIR = REPO_ROOT / "api"
 if str(API_DIR) not in sys.path:

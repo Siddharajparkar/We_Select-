@@ -11,12 +11,13 @@ This repository holds an **existing** project: an Assessment Portal already runs
 
 Non-negotiable constraints (details in Prompt B):
 - **No Docker** on the user's machines. Docker is used only by GitHub Actions runners.
-- **No Azure access.** Never run `az login`, never ask for Azure credentials, never call real Azure endpoints. Azure code is built Azure-ready, tested against mocks, Azurite and a CI SQL Server container, and connected later by the human at the office (Azure Cloud Shell in a browser).
+- **Azure access (updated 2026-11-03, user instruction):** the human signs in to Azure CLI in their own terminal; the agent never runs `az login` and never asks for passwords, keys or MFA codes. The agent MAY run read-only `az` commands (`list`, `show`, `get`, `check`, `exists`) that cannot reveal secrets. Every Azure change, and every command that prints a key or connection string, is run by the human from a STEP CARD or script the agent provides, then verified read-only by the agent. Secrets live only in Key Vault, Container Apps secrets, or the gitignored `api/.env.local`; the agent never reads those files.
+- **Git (updated 2026-11-03):** the agent edits files only. The human runs every `git add/commit/push/merge` (the agent gives the exact commands, with explicit paths).
 - **Existing project, existing repository.** Do not create a new repository; do not restructure or touch `frontend/`, `backend/`, `database/` or `ai_service/` (you may read `ai_service/`; it is reference only). Phases 0 to 3 already exist in `api/app/` (Python): extend them, do not rebuild them.
 - **Public repository.** Never write real Azure resource names, subscription or tenant ids, hostnames, emails, keys or tokens into any file, comment, PR text or log. Use placeholders such as `<SQL_SERVER>`.
 - **Shared Azure estate and shared database.** Zero-touch until a human has written `SIGN-OFF: APPROVED by` in `docs/PROVISIONING_PLAN.md` (you never write that line). Our tables live only in schema `assess`. Reuse the existing SQL database, AI resource, logs, registry and Container Apps environment; create only `assess-api` and what the plan lists.
 - **Git workflow (Prompt B, B5.5):** one branch per phase (`phase/NN-name`) from the latest `main`, a pull request per phase, all CI and CD on GitHub Actions, merge to `main` only when the run is green. Never commit to `main` directly.
-- **Budget $25.00 per month**: keep every design and script cost-aware.
+- **Budget $50.00 per month** for this backend (decision record, 2026-11-03): keep every design and script cost-aware.
 - **Backend only.** Do not create or change any frontend (`web/`).
 - **No secrets** in the repository, logs or documents.
 - Do not wait for the user to paste prompts: read the files above and work phase by phase, keeping `docs/PROGRESS.md` up to date.

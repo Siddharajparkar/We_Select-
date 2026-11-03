@@ -47,7 +47,7 @@ ok
 
 Interactive API documentation is available at `http://127.0.0.1:8080/api/v1/docs` in development; `/` and `/docs` also redirect there for convenience. These shortcuts and the interactive documentation are disabled in production. To stop the server, press **Ctrl+C** in its terminal. The in-memory data is temporary and is cleared when the server restarts.
 
-The API configuration reads environment variables; it does not automatically load `api\.env.example`. The explicit PowerShell settings above keep local runs on memory/fake services and prevent accidental use of Azure. `COOKIE_SECURE` defaults to `true`; the supplied end-to-end harness handles the cookie explicitly. For manual browser login over plain HTTP only, set `$env:COOKIE_SECURE = "false"` in the server terminal. Never use that setting in production.
+The API configuration reads environment variables. Outside production it also loads the gitignored developer file `api\.env.local` if it exists (real environment variables win; `ASSESS_IGNORE_ENV_LOCAL=1` skips it; production never loads it). It never loads `api\.env.example`, which is only a template. The explicit PowerShell settings above keep local runs on memory/fake services and prevent accidental use of Azure. `COOKIE_SECURE` defaults to `true`; the supplied end-to-end harness handles the cookie explicitly. For manual browser login over plain HTTP only, set `$env:COOKIE_SECURE = "false"` in the server terminal. Never use that setting in production.
 
 ## Run the local end-to-end flow
 
