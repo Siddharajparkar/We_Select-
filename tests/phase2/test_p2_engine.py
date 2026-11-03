@@ -112,3 +112,22 @@ def test_memory_database_enforces_foreign_keys_and_is_isolated() -> None:
         conn.execute(text("CREATE TABLE only_in_a (id INT)"))
     with b.begin() as conn, pytest.raises(Exception, match="no such table"):
         conn.execute(text("SELECT * FROM only_in_a"))
+
+
+def test_login_timeout_comes_from_the_connection_string() -> None:
+    from app.db.engine import login_timeout_seconds
+
+    base = "Server=tcp:s.database.windows.net,1433;Database=d;User ID=u;Password=p"
+    assert login_timeout_seconds(base) == 30
+    assert login_timeout_seconds(base + ";Connection Timeout=90") == 90
+    assert login_timeout_seconds(base + ";Connection Timeout=2") == 2
+    assert login_timeout_seconds(base + ";Connection Timeout=9999") == 180
+    assert login_timeout_seconds(base + ";Connection Timeout=abc") == 30
+
+
+def test_the_odbc_string_has_no_adonet_only_keyword() -> None:
+    from urllib.parse import unquote_plus
+
+    from app.db.engine import build_sqlalchemy_url
+
+    assert "Connection Timeout" not in unquote_plus(build_sqlalchemy_url(ADO))

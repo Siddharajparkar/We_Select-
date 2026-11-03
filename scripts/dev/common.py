@@ -41,6 +41,7 @@ PLAN_FILE = REPO_ROOT / "docs" / "PROVISIONING_PLAN.md"
 REQUIRED_CONFIG = ["AZ_RESOURCE_GROUP", "AZ_KEY_VAULT", "AZ_SQL_SERVER", "AZ_APP"]
 
 Runner = Callable[..., Any]
+CMD_UNSAFE = "()&|<>^%"
 
 
 class DevError(Exception):
@@ -88,6 +89,19 @@ def require_signoff(plan: Path = PLAN_FILE) -> None:
         )
 
 
+def public_ip() -> str:
+    """This laptop's public IPv4 address (for the SQL firewall)."""
+    import httpx
+
+    try:
+        ip = httpx.get("https://api.ipify.org", timeout=10).text.strip()
+    except httpx.HTTPError:
+        raise DevError("Could not detect your public IP. Add it in the portal: SQL server > Networking.") from None
+    if not re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", ip):
+        raise DevError("Could not detect a valid public IPv4 address.")
+    return ip
+
+
 def az_executable() -> str | None:
     return shutil.which("az") or shutil.which("az.cmd")
 
@@ -97,6 +111,11 @@ def run_az(args: list[str], *, runner: Runner = subprocess.run, exe: str | None 
     exe = exe or az_executable()
     if exe is None:
         raise DevError("Azure CLI (az) not found. Install it from https://aka.ms/installazurecli and run `az login`.")
+    if exe.lower().endswith((".cmd", ".bat")):
+        bad = [a for a in args if any(ch in a for ch in CMD_UNSAFE)]
+        if bad:
+            # Windows runs az through cmd.exe, which mis-parses these characters in unquoted arguments.
+            raise DevError("Internal error: an az argument contains a character cmd.exe cannot pass safely.")
     res = runner([exe, *args], capture_output=True, text=True, check=False)
     if res.returncode != 0:
         lines = (res.stderr or "").strip().splitlines()
@@ -136,7 +155,6 @@ def non_secret_settings(cfg: dict[str, str]) -> dict[str, str]:
         "FOUNDRY_API_STYLE": cfg.get("FOUNDRY_API_STYLE", "v1"),
         "FOUNDRY_DEPLOYMENT": cfg.get("FOUNDRY_DEPLOYMENT", "Phi-4-mini-instruct"),
         "BLOB_CONTAINER": cfg.get("BLOB_CONTAINER", "jd-files"),
-        "COOKIE_SECURE": "false",  # plain-http local run; production refuses this
         "APP_BASE_URL": "http://localhost:8080",
         "API_INTERNAL_URL": "http://localhost:8080",
     }

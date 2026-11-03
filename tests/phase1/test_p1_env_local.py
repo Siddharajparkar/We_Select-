@@ -52,3 +52,24 @@ def test_a_file_that_selects_production_is_refused(envfile: Path) -> None:
     envfile.write_text("APP_ENV=production\n", encoding="utf-8")
     with pytest.raises(ConfigError, match="never loads a local env file"):
         load_settings()
+
+
+def test_probe_loads_missing_values_from_the_env_file_but_real_env_wins(tmp_path: Path) -> None:
+    from app.tools.probe import load_local_env
+
+    f = tmp_path / ".env.local"
+    f.write_text("DATABASE_URL=from-file\nAI_MODE=azure\n", encoding="utf-8")
+    env: dict[str, str] = {"ASSESS_ENV_FILE": str(f), "AI_MODE": "fake"}
+    assert load_local_env(env) == 1
+    assert env["DATABASE_URL"] == "from-file" and env["AI_MODE"] == "fake"
+
+
+def test_probe_ignores_the_file_in_production_and_when_switched_off(tmp_path: Path) -> None:
+    from app.tools.probe import load_local_env
+
+    f = tmp_path / ".env.local"
+    f.write_text("DATABASE_URL=from-file\n", encoding="utf-8")
+    assert load_local_env({"ASSESS_ENV_FILE": str(f), "APP_ENV": "production"}) == 0
+    assert load_local_env({"ASSESS_ENV_FILE": str(f), "ASSESS_IGNORE_ENV_LOCAL": "1"}) == 0
+    f.write_text("APP_ENV=production\nDATABASE_URL=x\n", encoding="utf-8")
+    assert load_local_env({"ASSESS_ENV_FILE": str(f)}) == 0

@@ -54,12 +54,27 @@ def build_sqlalchemy_url(database_url: str, driver: str = "ODBC Driver 18 for SQ
     host, _, port = server.partition(":")
     encrypt = "no" if p.get("encrypt", "yes").lower() in ("false", "no") else "yes"
     trust = "yes" if p.get("trustservercertificate", "no").lower() in ("true", "yes") else "no"
-    timeout = p.get("connectiontimeout", "30")
     odbc = (
         f"DRIVER={{{driver}}};SERVER={host},{port or 1433};DATABASE={database};UID={user};PWD={password};"
-        f"Encrypt={encrypt};TrustServerCertificate={trust};Connection Timeout={timeout}"
-    )
+        f"Encrypt={encrypt};TrustServerCertificate={trust}"
+    )  # the timeout is applied as the pyodbc login timeout (see login_timeout_seconds), not as an ODBC keyword
     return "mssql+pyodbc:///?odbc_connect=" + urllib.parse.quote_plus(odbc)
+
+
+def login_timeout_seconds(database_url: str) -> int:
+    """Login timeout from ``Connection Timeout`` (ADO.NET key) in ``DATABASE_URL``; default 30, clamped to 1-180 s.
+
+    A serverless Azure SQL database that auto-paused needs well over 15 s to resume, so this must be configurable.
+    """
+    if database_url.startswith(("mssql+pyodbc://", "mssql://")):
+        return 30
+    p = parse_ado_connection_string(database_url)
+    raw = p.get("connectiontimeout") or p.get("connecttimeout") or "30"
+    try:
+        value = int(raw)
+    except ValueError:
+        return 30
+    return max(1, min(180, value))
 
 
 def is_transient(exc: BaseException) -> bool:
@@ -140,7 +155,7 @@ def create_sql_database(database_url: str) -> Database:
         max_overflow=0,
         pool_recycle=1800,
         pool_pre_ping=True,
-        connect_args={"timeout": 15},  # query/login timeout seconds (pyodbc)
+        connect_args={"timeout": login_timeout_seconds(database_url)},  # pyodbc: login timeout in seconds
         fast_executemany=True,
     )
     return Database(engine)

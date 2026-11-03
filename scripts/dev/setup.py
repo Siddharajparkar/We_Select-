@@ -25,6 +25,7 @@ from common import (
     kv_get,
     load_config,
     non_secret_settings,
+    public_ip,
     run_az,
     write_env_local,
 )
@@ -40,15 +41,6 @@ def check_tools() -> list[str]:
     except ImportError:
         problems.append("pyodbc missing: run `pip install -r api/requirements-dev.txt`")
     return problems
-
-
-def public_ip() -> str:
-    import httpx
-
-    try:
-        return httpx.get("https://api.ipify.org", timeout=10).text.strip()
-    except httpx.HTTPError:
-        raise DevError("Could not detect your public IP. Add it in the portal: SQL server > Networking.") from None
 
 
 def add_firewall_rule(cfg: dict[str, str], ip: str) -> None:
