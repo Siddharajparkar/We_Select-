@@ -22,7 +22,7 @@ Backend: Python 3.12, FastAPI, Pydantic v2 (pydantic-settings), SQL (Azure SQL /
 | `@node-rs/argon2`, `argon2` | `argon2-cffi` (prebuilt wheels) in Phase 4 |
 | `pdf-parse`, `pdfkit` | `pypdf` (extraction), `reportlab` or `fpdf2` (export), Phase 5 / 10 |
 | `applicationinsights` SDK | `azure-monitor-opentelemetry` (`app/telemetry.py`) |
-| `openai` / REST for Foundry | `httpx` REST to the v1 route by default (`FOUNDRY_API_STYLE=v1`) |
+| `openai` / REST for Foundry | `httpx` adapter; API style must be verified for the selected Phi endpoint and explicitly configured (no assumed default) |
 | `npm audit` | `pip-audit` |
 | `actions/setup-node` | `actions/setup-python@v5` with pip cache |
 | `ESLint no-restricted-imports` for SQL | pytest static test (`tests/phase2/test_p2_boundaries.py`) that only repository modules import SQLAlchemy |

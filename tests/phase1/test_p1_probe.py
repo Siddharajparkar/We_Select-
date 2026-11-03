@@ -39,6 +39,18 @@ def test_config_probe_requires_foundry_vars_in_azure_ai_mode() -> None:
     assert r.status == "FAIL" and "FOUNDRY_ENDPOINT" in r.reason and "FOUNDRY_KEY" in r.reason
 
 
+def test_config_probe_requires_explicit_foundry_api_style_in_azure_ai_mode() -> None:
+    env = {
+        **BASE_ENV,
+        "AI_MODE": "azure",
+        "FOUNDRY_ENDPOINT": "https://example.invalid",
+        "FOUNDRY_KEY": "test-key",
+        "FOUNDRY_DEPLOYMENT": "phi-test-deployment",
+    }
+    r = probe.probe_config(env)
+    assert r.status == "FAIL" and "FOUNDRY_API_STYLE" in r.reason
+
+
 def test_config_probe_requires_acs_vars_in_azure_email_mode() -> None:
     r = probe.probe_config({**BASE_ENV, "EMAIL_MODE": "azure"})
     assert r.status == "FAIL" and "ACS_CONNECTION_STRING" in r.reason
@@ -55,13 +67,13 @@ def test_config_probe_output_never_prints_values(capsys: pytest.CaptureFixture[s
     [
         ("v1", "", "https://res.openai.azure.com/openai/v1/chat/completions"),
         ("v1", "2024-10-21", "https://res.openai.azure.com/openai/v1/chat/completions"),  # v1 never sends api-version
-        ("azure-deployments", "", "https://res.openai.azure.com/openai/deployments/gpt-4o/chat/completions"),
+        ("azure-deployments", "", "https://res.openai.azure.com/openai/deployments/phi-test-deployment/chat/completions"),
         ("azure-deployments", "2024-10-21",
-         "https://res.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21"),
+         "https://res.openai.azure.com/openai/deployments/phi-test-deployment/chat/completions?api-version=2024-10-21"),
     ],
 )  # fmt: skip
 def test_foundry_url_follows_api_style(style: str, version: str, expected: str) -> None:
-    assert probe.foundry_url("https://res.openai.azure.com/", "gpt-4o", style, version) == expected
+    assert probe.foundry_url("https://res.openai.azure.com/", "phi-test-deployment", style, version) == expected
 
 
 def test_missing_prerequisites_fail_fast_without_network() -> None:
@@ -86,7 +98,12 @@ def test_foundry_probe_sends_api_key_header_and_reports_tokens(monkeypatch: pyte
         return httpx.Response(200, json={"usage": {"total_tokens": 17}}, request=httpx.Request("POST", url))
 
     monkeypatch.setattr(httpx, "post", fake_post)
-    env = {"FOUNDRY_ENDPOINT": "https://r.example", "FOUNDRY_KEY": "supersecretkey", "FOUNDRY_DEPLOYMENT": "gpt-4o"}
+    env = {
+        "FOUNDRY_ENDPOINT": "https://r.example",
+        "FOUNDRY_KEY": "supersecretkey",
+        "FOUNDRY_DEPLOYMENT": "phi-test-deployment",
+        "FOUNDRY_API_STYLE": "v1",
+    }
     r = probe.probe_foundry(env)
     assert r.status == "PASS" and "tokens=17" in r.reason and "style=v1" in r.reason
     assert seen["url"] == "https://r.example/openai/v1/chat/completions"
@@ -103,9 +120,25 @@ def test_foundry_probe_failure_reports_status_without_key(monkeypatch: pytest.Mo
 
     monkeypatch.setattr(httpx, "post", fake_post)
     r = probe.probe_foundry(
-        {"FOUNDRY_ENDPOINT": "https://r", "FOUNDRY_KEY": "supersecretkey", "FOUNDRY_DEPLOYMENT": "d"}
+        {
+            "FOUNDRY_ENDPOINT": "https://r",
+            "FOUNDRY_KEY": "supersecretkey",
+            "FOUNDRY_DEPLOYMENT": "d",
+            "FOUNDRY_API_STYLE": "v1",
+        }
     )
     assert r.status == "FAIL" and "HTTP 401" in r.reason and "supersecretkey" not in r.reason
+
+
+def test_foundry_probe_requires_api_style_before_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    import httpx
+
+    def unexpected_post(*args: object, **kwargs: object) -> httpx.Response:
+        pytest.fail("probe must not make a request without a verified API style")
+
+    monkeypatch.setattr(httpx, "post", unexpected_post)
+    r = probe.probe_foundry({"FOUNDRY_ENDPOINT": "https://r", "FOUNDRY_KEY": "key", "FOUNDRY_DEPLOYMENT": "d"})
+    assert r.status == "FAIL" and "FOUNDRY_API_STYLE" in r.reason
 
 
 def test_main_prints_summary_and_exit_codes(

@@ -1,9 +1,11 @@
-# Architectural Evaluation & Phase 1 Pre-Provisioning Plan
+# SUPERSEDED — Historical Architectural Evaluation & Phase 1 Plan
 
 **Project:** AI Candidate Assessment Platform (MVP Backend)  
-**Document Status:** PENDING USER REVIEW & CLOUD SHELL VERIFICATION  
+**Document Status:** SUPERSEDED — DO NOT USE FOR PROVISIONING
 **Author:** Antigravity Engineering  
 **Date:** 2026-11-01  
+
+> **This is a historical draft.** Its stack assumptions, resource inventory, sample names, cost estimates, budget ceiling, and commands have not been reconciled with current decisions. Do not execute or rely on any content below. The current authority is [the maintained Office Connection and Testing Guide](./OFFICE_CONNECTION_AND_TESTING_GUIDE.md) and [the unsigned Provisioning Plan](./PROVISIONING_PLAN.md). Azure changes remain prohibited until the human owner reviews the plan and adds the approval line.
 
 ---
 
@@ -190,4 +192,3 @@ Once you provide the names of the existing resources from the inspection above, 
 1. Run the inspection commands in Section 7 from your organization laptop's Azure Cloud Shell (or follow Section 8 in the Portal).
 2. Share the non-sensitive output (resource names, existing resource groups, and SKUs).
 3. Review and approve the plan, and we will generate the exact, ready-to-execute Phase 1 provisioning script for your Cloud Shell.
-

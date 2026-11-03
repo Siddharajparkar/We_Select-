@@ -41,10 +41,10 @@ class Settings(BaseSettings):
 
     # AI provider
     AI_MODE: Literal["fake", "azure"] = "fake"
-    FOUNDRY_API_STYLE: Literal["v1", "azure-deployments"] = "v1"
+    FOUNDRY_API_STYLE: Literal["v1", "azure-deployments", ""] = ""
     FOUNDRY_ENDPOINT: str = ""
     FOUNDRY_KEY: str = ""
-    FOUNDRY_DEPLOYMENT: str = "gpt-4o"
+    FOUNDRY_DEPLOYMENT: str = ""
     FOUNDRY_API_VERSION: str = ""  # optional; only used by the azure-deployments style
     AI_MAX_OUTPUT_TOKENS: int = Field(default=2000, ge=1)
     AI_DAILY_TOKEN_CAP: int = Field(default=200_000, ge=1)  # per tenant per UTC day
@@ -91,8 +91,13 @@ class Settings(BaseSettings):
         problems: list[str] = []
         if self.REPO_BACKEND == "sql" and not self.DATABASE_URL:
             problems.append("DATABASE_URL is required when REPO_BACKEND=sql")
-        if self.AI_MODE == "azure" and not (self.FOUNDRY_ENDPOINT and self.FOUNDRY_KEY):
-            problems.append("FOUNDRY_ENDPOINT and FOUNDRY_KEY are required when AI_MODE=azure")
+        if self.AI_MODE == "azure":
+            if not (self.FOUNDRY_ENDPOINT and self.FOUNDRY_KEY):
+                problems.append("FOUNDRY_ENDPOINT and FOUNDRY_KEY are required when AI_MODE=azure")
+            if not self.FOUNDRY_DEPLOYMENT:
+                problems.append("FOUNDRY_DEPLOYMENT is required when AI_MODE=azure")
+            if not self.FOUNDRY_API_STYLE:
+                problems.append("FOUNDRY_API_STYLE must be explicitly set after endpoint compatibility is verified")
         if self.EMAIL_MODE == "azure" and not (self.ACS_CONNECTION_STRING and self.ACS_SENDER):
             problems.append("ACS_CONNECTION_STRING and ACS_SENDER are required when EMAIL_MODE=azure")
         if self.FILES_MODE in ("azurite", "azure") and not self.BLOB_CONNECTION_STRING:

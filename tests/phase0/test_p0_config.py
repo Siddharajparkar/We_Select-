@@ -10,7 +10,9 @@ LONG = "x" * 40
 PROD_OK = dict(  # noqa: C408
     APP_ENV="production", AI_MODE="azure", EMAIL_MODE="azure", FILES_MODE="azure", REPO_BACKEND="sql",
     DATABASE_URL="Server=tcp:h,1433;Database=d;User ID=u;Password=p;", SESSION_SECRET=LONG, PLATFORM_KEY=LONG,
-    FOUNDRY_ENDPOINT="https://example.invalid", FOUNDRY_KEY="k", ACS_CONNECTION_STRING="endpoint=x;accesskey=y",
+    FOUNDRY_ENDPOINT="https://example.invalid", FOUNDRY_KEY="k", FOUNDRY_DEPLOYMENT="phi-test-deployment",
+    FOUNDRY_API_STYLE="v1",
+    ACS_CONNECTION_STRING="endpoint=x;accesskey=y",
     ACS_SENDER="no-reply@example.invalid", BLOB_CONNECTION_STRING="UseDevelopmentStorage=true",
 )  # fmt: skip
 
@@ -20,8 +22,8 @@ def test_defaults_are_safe_local_fakes() -> None:
     assert (s.APP_ENV, s.REPO_BACKEND, s.AI_MODE, s.EMAIL_MODE, s.FILES_MODE) == (
         "development", "memory", "fake", "fake", "memory",
     )  # fmt: skip
-    assert s.PORT == 8080 and s.DB_SCHEMA == "assess" and s.FOUNDRY_DEPLOYMENT == "gpt-4o"
-    assert s.FOUNDRY_API_STYLE == "v1" and s.GIT_SHA == "local"
+    assert s.PORT == 8080 and s.DB_SCHEMA == "assess" and s.FOUNDRY_DEPLOYMENT == ""
+    assert s.FOUNDRY_API_STYLE == "" and s.GIT_SHA == "local"
     assert s.BLOB_CONTAINER == "jd-files"
 
 
@@ -65,6 +67,8 @@ def test_production_rejects_dev_placeholder_secrets() -> None:
     [
         ({"REPO_BACKEND": "sql"}, "DATABASE_URL"),
         ({"AI_MODE": "azure"}, "FOUNDRY_ENDPOINT"),
+        ({**PROD_OK, "FOUNDRY_DEPLOYMENT": ""}, "FOUNDRY_DEPLOYMENT"),
+        ({**PROD_OK, "FOUNDRY_API_STYLE": ""}, "FOUNDRY_API_STYLE"),
         ({"EMAIL_MODE": "azure"}, "ACS_CONNECTION_STRING"),
         ({"FILES_MODE": "azurite"}, "BLOB_CONNECTION_STRING"),
     ],

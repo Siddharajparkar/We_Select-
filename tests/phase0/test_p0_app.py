@@ -154,6 +154,8 @@ def test_openapi_docs_enabled_in_development_disabled_in_production(settings) ->
         APP_ENV="production", AI_MODE="azure", EMAIL_MODE="azure", FILES_MODE="azure", REPO_BACKEND="sql",
         DATABASE_URL="Server=tcp:h,1433;Database=d;User ID=u;Password=p;", SESSION_SECRET="s" * 40,
         PLATFORM_KEY="p" * 40, FOUNDRY_ENDPOINT="https://x.invalid", FOUNDRY_KEY="k",
+        FOUNDRY_API_STYLE="v1",
+        FOUNDRY_DEPLOYMENT="phi-test-deployment",
         ACS_CONNECTION_STRING="endpoint=x;accesskey=y", ACS_SENDER="a@b.invalid",
         BLOB_CONNECTION_STRING="UseDevelopmentStorage=true",
     )  # fmt: skip

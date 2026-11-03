@@ -5,10 +5,23 @@
 **Saved in the repo as:** `docs/OFFICE_CONNECTION_AND_TESTING_GUIDE.md`
 **Audience:** you, at the office, **without AI help**, on the organisation laptop, where Docker is not available and the Azure CLI cannot be installed (you use **Azure Cloud Shell** in the browser).
 
+### OC-0 status update (2026-11-03; user-reported, not independently verified)
+- The user later clarified that some Azure CLI output was produced on the development laptop rather than the approved organization Cloud Shell. Treat **all CLI inventory results below as provisional leads**; re-run them in the organization Cloud Shell or Azure portal before selecting REUSE/CREATE.
+- The planning ceiling is now **$50 USD/month for this backend**, superseding the earlier $25 amount. Intended alerts are **$25 / $40 / $50**. The user reports a $50 budget exists, but its Azure scope and alert thresholds remain unverified.
+- At the user's request, month-to-date Cost Analysis is deferred. A previous-month spend of about $50 was reported, but its scope is unknown. Do not treat either figure as a backend-only estimate.
+- The account owner reports the SQL database is empty, the ACS resource exists without Email service/domain, and the Foundry project has a Phi-4-mini-instruct deployment. Verify these in the organization tenant and confirm the exact SQL target and resource ownership.
+- The user reports the Phi v1 chat-completions route and limits of 20,000 tokens/minute and 20 requests/minute. Verify authentication, full request/response behavior and pricing before any live model call; these rate limits do not bound monthly cost.
+- **New OC-0 evidence reported from organization Cloud Shell / SQL Query Editor (2026-11-03):** the SQL metadata result lists only built-in schemas and does not show `assess`; database metadata reports General Purpose, `GP_S_Gen5_2`, compatibility level 170, and collation `SQL_Latin1_General_CP1_CI_AS`. The deployment list succeeded through a read-only ARM request using API version `2025-06-01` and returned model/deployment `Phi-4-mini-instruct`, model version `1`, SKU `GlobalStandard`, capacity `20`, in the North Central US account. These are user-provided outputs, not independently checked by the agent. The model endpoint's authentication/request compatibility and monthly cost remain unverified.
+- **Provider and resource-list results reported from Cloud Shell (2026-11-03):** `Microsoft.App` and `Microsoft.ContainerRegistry` are `NotRegistered`; `Microsoft.OperationalInsights`, `Microsoft.Sql`, `Microsoft.Storage`, `Microsoft.CognitiveServices`, `Microsoft.Communication`, and `Microsoft.Insights` are `Registered`. The user pasted three unlabeled resource-list tables (two rows in North Central US and one global). Assuming they are in the order of the guide's queries, these are Log Analytics, Application Insights, and Communication Services; verify by rerunning each command separately if the command/output order differed. No Container Apps query was run because `Microsoft.App` is not registered. Provider registration changes subscription state and must wait for an explicitly reviewed plan.
+- Partial organization Cloud Shell PowerShell inventory was shared on 2026-11-03: AI Services accounts were listed in North Central US and East US; Log Analytics and Application Insights were listed in North Central US; a Communication Services resource and West US SQL server were listed. ACR and Storage account list commands returned no rows. Container Apps queries were blocked because Microsoft.App was not registered. SQL database and AI deployment list commands did not run because the required resource-group/name variables were empty; the provider-status Bash loop was entered in PowerShell and failed. Keep this inventory partial; do not infer database schema, deployment details, or provider states from it. Real identifiers and telemetry connection strings from the pasted output are intentionally omitted.
+- Subscription-wide read-only queries returned AI resources in East US and North Central US, and Log Analytics/Application Insights in North Central US. The intended AI account/deployment and suitability of the monitoring resources for reuse are unresolved. No ACR or Storage rows were returned.
+- The Container Apps environment could not be queried because `Microsoft.App` is not registered. This does **not** prove that no environment exists. Provider registration is a subscription change and must wait for the signed plan.
+- The user entered a sign-off line in the local plan, but that plan is currently uncommitted and must be available on `main` before a fresh Cloud Shell clone can use it. OC-0 is read-only and remains required; no Azure changes have been made by this agent.
+
 ### What this guide assumes
-- The backend (all 14 phases) is already built and tested at home with GitHub Actions. It is **Azure-ready but has never talked to Azure**.
+- Backend phases 0-6 are implemented locally. Azure connectivity is not yet verified; Phases 7-13 remain to be built.
 - The code is in the existing repository `Siddharajparkar/We_Select-` on `main`. There is **no move to another repository**.
-- The Azure subscription **already contains the Assessment Portal** (a shared SQL database in West US, an AI resource with GPT-4o, logs, Application Insights, a Container Apps environment and possibly a registry). The rule is **reuse first, create only what is missing, change nothing until the written plan is signed off**.
+- The Azure subscription **already contains the Assessment Portal** (a shared SQL database in West US, AI resources, logs, Application Insights, a Container Apps environment and possibly a registry). The backend will use Microsoft Phi; its exact model variant, deployment, and API compatibility are not yet verified. The rule is **reuse first, create only what is missing, change nothing until the written plan is signed off**.
 - You use the Azure login you are allowed to use on this laptop (see section 1). **Never type anyone's password anywhere except the Microsoft sign-in page, and never give a password, key or connection string to an AI tool.**
 - You need **no Docker** anywhere in this guide. Images are built by GitHub Actions or by Azure itself (`az acr build`).
 - The **repository is public**. Real resource names, subscription and tenant ids, hostnames, emails, keys and tokens go **only** into your private notes file, your password manager and Azure itself, never into the repository, issues, pull requests or workflow logs.
@@ -22,21 +35,21 @@ The commands below were written **without access to Azure**. Most will work as w
 
 | ID | Phase | What gets connected or proven | Status | Date | Evidence saved |
 |---|---|---|---|---|---|
-| OC-0 | 1 | Read-only discovery of what already exists, SQL inventory, cost baseline | PENDING | | |
-| OC-PLAN | 1 | `docs/PROVISIONING_PLAN.md` reviewed and **signed off** by you and the Azure account owner | PENDING | | |
+| OC-0 | 1 | Read-only discovery of what already exists, SQL inventory, cost baseline | PARTIAL: SQL DB, Foundry deployment and provider status still need valid queries; SQL inventory pending | | |
+| OC-PLAN | 1 | `docs/PROVISIONING_PLAN.md` reviewed and **signed off** by you and the Azure account owner | Sign-off in local uncommitted plan; verify on `main` | | |
 | OC-1A | 1 | Core resources (registry, logs, Application Insights, Container Apps environment): reuse or create, tags, budget | PENDING | | |
 | OC-1B | 1 | Existing Azure SQL: schema `assess` and the app user | PENDING | | |
 | OC-1C | 1 | Blob Storage account and private container (create) | PENDING | | |
-| OC-1D | 1 | Existing AI resource with GPT-4o (reuse, v1 route) | PENDING | | |
+| OC-1D | 1 | Owner-approved Microsoft Phi model/deployment and API route verified | PENDING | | |
 | OC-1E | 1 | Communication Services (email) | PENDING | | |
 | OC-1F | 1 | `assess-api` container app, identity, registry access, secrets and settings | PENDING | | |
 | OC-1G | 1 | GitHub to Azure trust (OIDC, narrow scope) and repo variables | PENDING | | |
-| OC-1H | 1 | Probes pass for SQL (with latency), Blob, GPT-4o, Application Insights, email | PENDING | | |
+| OC-1H | 1 | Probes pass for SQL (with latency), Blob, Microsoft Phi, Application Insights, email | PENDING | | |
 | OC-2 | 2 | 13 tables exist in schema `assess`; existing `dbo` tables unchanged | PENDING | | |
 | OC-3 | 3 | First real deployment through the pipeline | PENDING | | |
 | OC-4 | 4 | Login, tenants, users working live | PENDING | | |
 | OC-5 | 5 | Assessments and PDF upload to Azure Blob live | PENDING | | |
-| OC-6 | 6 | Real GPT-4o question generation live | PENDING | | |
+| OC-6 | 6 | Real Microsoft Phi question generation live | PENDING | | |
 | OC-7 | 7 | Real invitation email arrives | PENDING | | |
 | OC-8 | 8 | Candidate exam with the real link token, timer and auto-submit | PENDING | | |
 | OC-9 | 9 | Real AI marking and review | PENDING | | |
@@ -56,19 +69,19 @@ Read this table first. It answers, for every phase: **what the phase builds**, *
 | Phase | What the phase builds (already done at home) | Azure connection required at the office | Settings, secrets, roles it introduces | Checkpoint | You may proceed when (summary; the exact line is under each checkpoint) |
 |---|---|---|---|---|---|
 | **0** Foundation | Project skeleton (reconciled with the existing `api/`), fake services, in-memory data layer, CI "fast" job | **None** | None | none | n/a (nothing to connect) |
-| **1** Discovery, plan and targeted provisioning | Read-only discovery scripts, the plan template, provisioning scripts that **refuse to write without sign-off**, the `probe` tool | **Read-only first (OC-0).** After sign-off, only what the plan says: reuse **SQL (West US)**, **AI resource with GPT-4o**, **Log Analytics**, **Application Insights**, **registry**, **Container Apps environment**; create **Blob Storage**, **Communication Services (email)**, the **`assess-api`** app, the budget, the GitHub trust (OIDC) | `DATABASE_URL`, `DB_SCHEMA`, `FOUNDRY_*`, `ACS_*`, `BLOB_*`, `SESSION_SECRET`, `PLATFORM_KEY`, `APPLICATIONINSIGHTS_CONNECTION_STRING`; roles `AcrPull`, `AcrPush`, narrow `Contributor`; GitHub secrets/variables `AZURE_*` | OC-0, OC-PLAN, OC-1A to OC-1H | Inventory done, plan signed, every needed resource verified or created, the probes say `PASS`, the test email arrived |
+| **1** Discovery, plan and targeted provisioning | Read-only discovery scripts, the plan template, provisioning scripts that **refuse to write without sign-off**, the `probe` tool | **Read-only first (OC-0).** After sign-off, only what the plan says: reuse **SQL (West US)**, the owner-approved **Microsoft Phi deployment**, **Log Analytics**, **Application Insights**, **registry**, **Container Apps environment**; create **Blob Storage**, **Communication Services (email)**, the **`assess-api`** app, the budget, the GitHub trust (OIDC) | `DATABASE_URL`, `DB_SCHEMA`, `FOUNDRY_*`, `ACS_*`, `BLOB_*`, `SESSION_SECRET`, `PLATFORM_KEY`, `APPLICATIONINSIGHTS_CONNECTION_STRING`; roles `AcrPull`, `AcrPush`, narrow `Contributor`; GitHub secrets/variables `AZURE_*` | OC-0, OC-PLAN, OC-1A to OC-1H | Inventory done, plan signed, every needed resource verified or created, the probes say `PASS`, the test email arrived |
 | **2** Database | Schema `assess`, migration runner, repositories (SQL and in-memory) | **Azure SQL** (app user, connection string) | `DATABASE_URL`, `DB_SCHEMA=assess` | OC-2 | 13 tables exist in `assess`, a restart changes nothing, existing `dbo` tables unchanged |
 | **3** Container and first pipeline | Dockerfile, GitHub Actions pipeline, smoke test, `assess-api` image name | **Container Registry, the `assess-api` app in the existing environment, Azure SQL** (migrations at start), **Application Insights**, GitHub trust | Variable `AZURE_DEPLOY_ENABLED=true`, `GIT_SHA` | OC-3 | `/api/v1/health` is OK, the version header equals the commit, migrations ran in schema `assess`, Application Insights shows requests |
 | **4** Auth, tenants, users | Login sessions, roles, platform key, lockout | **Azure SQL** (already connected) | E2E test tenants, GitHub secrets `E2E_*` | OC-4 | All live auth checks pass; tenant A cannot see tenant B |
 | **5** Assessments and job description | Assessment CRUD, PDF/TXT upload and text extraction | **Blob Storage** (and SQL) | `BLOB_CONNECTION_STRING`, `BLOB_CONTAINER` in use | OC-5 | PDF appears in Azure Blob, its text is in SQL, delete removes it |
-| **6** Job loop and AI generation | Background job engine, GPT-4o question generation, review, approve | **AI Foundry GPT-4o** (and SQL) | `FOUNDRY_ENDPOINT`, `FOUNDRY_KEY`, `FOUNDRY_DEPLOYMENT`, `FOUNDRY_API_STYLE=v1` in use (approve needs exactly the configured number of questions per section) | OC-6 | Real generation job finishes, tokens are logged, Application Insights shows the call |
+| **6** Job loop and AI generation | Background job engine, Microsoft Phi question generation, review, approve | **Owner-approved Microsoft Phi deployment** (and SQL); model/API compatibility must be verified | `FOUNDRY_ENDPOINT`, `FOUNDRY_KEY`, `FOUNDRY_DEPLOYMENT`, confirmed `FOUNDRY_API_STYLE` (approve needs exactly the configured number of questions per section) | OC-6 | Real generation job finishes, tokens are logged, Application Insights shows the call |
 | **7** Participants and invitations | CSV import, invitation tokens, email job, resend | **Communication Services (email)** (and SQL) | `ACS_CONNECTION_STRING`, `ACS_SENDER` in use | OC-7 | Real email arrives, status becomes `sent`, resend sends a new one |
 | **8** Candidate exam | Link check, start, autosave, submit, server deadline, auto-submit | **SQL** (token comes from the real ACS email) | Secret `E2E_CANDIDATE_TOKEN` | OC-8 | Full candidate flow passes with the real token; auto-submit works |
-| **9** Scoring | Automatic grading, AI marking, review queue | **AI Foundry GPT-4o** (and SQL) | none new | OC-9 | Every answer is scored or in review; no AI call for blank answers |
+| **9** Scoring | Automatic grading, AI marking, review queue | **Owner-approved Microsoft Phi deployment** (and SQL) | none new | OC-9 | Every answer is scored or in review; no AI call for blank answers |
 | **10** Results, override, export | Results table, attempt detail, override, CSV and PDF, audit | **SQL** | none new | OC-10 | Exports open correctly, override is audited, six audit events exist |
-| **11** Hardening | Limits, security tests, monitoring script, read-only backup check, small load test | **Application Insights alerts, budget alerts, SQL backup settings (read-only), Container App** | Action group email, budget alerts at $12.50 / $20.00 / $25.00 | OC-11 | Alert email received, backup retention noted, small load test within targets (or bottleneck documented) |
+| **11** Hardening | Limits, security tests, monitoring script, read-only backup check, small load test | **Application Insights alerts, budget alerts, SQL backup settings (read-only), Container App** | Action group email, backend budget alerts intended at $25 / $40 / $50 (scope to verify) | OC-11 | Alert email received, backup retention noted, small load test within targets (or bottleneck documented) |
 | **12** Full CI/CD | Complete pipeline, rollback, nightly, live-e2e workflow | **GitHub to Azure** (already trusted) | Branch protection, optional environment | OC-12 | Merge deploys only when green; rollback works |
-| **13** Release and acceptance | Acceptance script, demo data, handover, teardown-by-tag script | **All services together** | Rotated secrets, locks on our own resources | OC-13 | All 12 acceptance stages pass; lock-down done; actual cost compared with $25; ledger clean |
+| **13** Release and acceptance | Acceptance script, demo data, handover, teardown-by-tag script | **All services together** | Rotated secrets, locks on our own resources | OC-13 | All 12 acceptance stages pass; lock-down done; actual cost compared with the $50 backend ceiling when reviewed; ledger clean |
 
 **Office run order (not the same as phase order):** OC-0, OC-PLAN, OC-1A, 1B, 1C, 1D, 1E, 1F, 1G, then **OC-3**, then **OC-1H**, then **OC-2**, then OC-4, 5, 6, 7, 8, 9, 10, 11, 12, 13. Reason: the probe tool and the database migrations both live inside the image that OC-3 deploys.
 
@@ -107,12 +120,12 @@ Either way, **creating the GitHub trust (OC-1G)**, **role assignments (OC-1F)** 
 ### 1.2 Questions to ask before touching anything (write the answers in your private notes)
 1. Which **subscription** (name and id) and which **resource groups** hold the portal, the SQL server, the AI resource, the registry and the Container Apps environment?
 2. Is there an **Azure Policy** that forces tags, names, private endpoints, or blocks public access on storage or SQL?
-3. **Budget:** is the **$25.00 per month** ceiling for the **new backend only**, or for the **whole subscription**? What does the subscription cost today (month to date and last month)? If the portal already uses most of it, **stop and tell your backend developer**.
+3. **Budget:** the approved planning ceiling is **$50.00/month for this backend only**. The user requested deferring Cost Analysis for now. Before sign-off, the owner must verify the Azure budget scope and alert thresholds and complete service cost estimates; never assume a subscription- or resource-group-wide budget is backend-only.
 4. May we create an **Entra app registration**? If not, we use the **managed identity** variant in OC-1G (needs no Entra permission).
 5. Is **GitHub Actions** allowed to deploy with **OIDC** to this subscription? If not, we use the manual deploy path (OC-3 path B).
 6. Who is allowed to create a **schema and a database user** inside the shared SQL database, and with which login (Entra admin or SQL admin)?
-7. Is the **AI key** shared with the portal? (Yes, probably. Never regenerate it: that would break the portal.)
-8. What is the **base URL** that the portal's `ai_service` uses for the AI calls (the host in the `/openai/v1/` address)? Use the same host.
+7. Is any AI key shared with the portal? **Unknown until the owner verifies it.** Never regenerate or rotate a key during discovery.
+8. What endpoint and API contract does the existing portal use? Do not assume its host or API route is valid for this Phi deployment.
 9. Which **mailbox** receives the test emails in OC-1H/OC-7? (Use your own office mailbox. Never write it into the repository.)
 10. Is there a corporate **proxy or TLS inspection**? (See section 2.)
 11. Who is the **account owner** who co-signs the plan?
@@ -128,7 +141,7 @@ Either way, **creating the GitHub trust (OC-1G)**, **role assignments (OC-1F)** 
 | Need | How |
 |---|---|
 | Run Azure commands | **Azure Cloud Shell, Bash**, opened from the portal. When it asks about storage, choose **"No storage account required"** (select the subscription, then Apply). Nothing is created in the subscription, but the session is **ephemeral**: files and variables disappear after about 20 minutes idle. |
-| Get the repository scripts | In Cloud Shell: `git clone https://github.com/Siddharajparkar/We_Select-.git && cd test-exam` (public repository, no login). The scripts contain no secrets. Re-clone in every new session. |
+| Get the repository scripts | In Cloud Shell: `git clone https://github.com/Siddharajparkar/We_Select-.git && cd We_Select-` (public repository, no login). The scripts contain no secrets. Re-clone in every new session. |
 | Remember the variables | Keep the **non-secret variable block** (section 3) in your private notes and paste it at the start of every Cloud Shell session. **Secrets** are never saved in Cloud Shell: they live in your password manager and, once deployed, in Container Apps secrets. Re-enter one with `read -rsp`. |
 | Build the image | **GitHub Actions** builds it in the cloud. Fallback: `az acr build` (builds inside Azure; no local Docker). |
 | Run the live E2E tests | **GitHub Actions** workflow `live-e2e` (manual start). |
@@ -164,7 +177,7 @@ export APPI="<Application Insights component name>"
 export SQLSRV="<SQL server name>"
 export SQLDB="<database name>"
 export AIACC="<AI resource name>"
-export AI_DEPLOY="<GPT-4o deployment NAME>"
+export AI_DEPLOY="<exact Microsoft Phi deployment NAME>"
 
 # --- new resources (CREATE only if the signed plan says so) ---
 export API_APP="assess-api"                         # the only container app we create
@@ -204,7 +217,7 @@ Never run `echo $SECRET`. Never paste a secret into a ticket, chat or any AI too
 
 There is no repository move. In every new Cloud Shell session:
 ```bash
-git clone https://github.com/Siddharajparkar/We_Select-.git && cd test-exam
+git clone https://github.com/Siddharajparkar/We_Select-.git && cd We_Select-
 git log --oneline -1          # must show the latest merged commit; scripts are on main
 ```
 If a phase has not been merged yet, use `git clone -b <branch> ...` as your backend developer tells you. **Before relying on the repository, check that no secret is in its history** (your backend developer scans it in Phase 0): you may also run `git log --all -p | grep -iE "password=|secret=|key=" | head` and expect only placeholders.
@@ -220,62 +233,130 @@ Each checkpoint has: **Needs**, **Do**, **Expect**, **Test**, **If it fails**, *
 ## OC-0: Read-only discovery (nothing is created or changed)
 **Needs:** section 2 (Cloud Shell, no storage), section 4 (clone). **Nobody runs anything that creates, changes, deletes or reveals secrets in this checkpoint.**
 
-**Do 1: Azure inventory.** In Cloud Shell:
+### Start OC-0: where to go and which shell to use
+
+1. On the **organization laptop**, open [portal.azure.com](https://portal.azure.com) in the browser and sign in with the organization account that is authorized for this subscription. Do not send anyone a password, MFA code, key, or connection string.
+2. Open **Cloud Shell** from the portal's top bar. If asked to choose a shell, choose **Bash**. If Cloud Shell is currently PowerShell, use its shell menu to switch to Bash; do not paste Bash commands into PowerShell. If asked about storage, choose the no-storage option if available. Cloud Shell is temporary, so keep the guide and private notes open separately.
+3. In Cloud Shell, clone the public repository and enter its folder:
+   ```bash
+   git clone https://github.com/Siddharajparkar/We_Select-.git
+   cd We_Select-
+   git log -1 --oneline
+   ```
+   The last command prints the checked-out commit. This is only to read the SQL inventory file; it does not connect to or change Azure.
+4. Run the following in Cloud Shell **one block at a time**. Keep the output in private notes. Resource names and subscription details are private; do not paste raw output into chat, GitHub, or this public repository.
+
+### Do 1: verify account and discover names before setting variables
+
+First confirm which subscription Cloud Shell selected:
 ```bash
-export SUB="<subscription-id>"; az account set --subscription "$SUB"; az account show -o table
-bash infra/azure/discovery/inventory.sh
+az account show --query '{name:name,id:id,state:state}' -o table
+az account list --query '[].{name:name,id:id,state:state,isDefault:isDefault}' -o table
 ```
-It prints, using only `list` and `show` commands: resource groups, resources (name, type, region), Container Apps environments and apps (names, ingress type, **image names**, setting and secret **names only**), registries, SQL servers and databases (tier), AI resources and deployments (model, version, capacity), Log Analytics, Application Insights, storage accounts, Communication Services, budgets, provider registration states. Copy the whole output into your **private notes**.
-
-*Fallback if the script is missing or fails* (all read-only; run what you need):
+If the current subscription is not the one the owner authorized, copy the correct **subscription ID** from the `az account list` output into the command below, then re-run `az account show` and verify it:
 ```bash
-az group list -o table
-az resource list -o table --query "[].{name:name,type:type,rg:resourceGroup,loc:location}"
-az containerapp env list -o table
-az containerapp list -o table --query "[].{name:name,rg:resourceGroup,ingress:properties.configuration.ingress.external}"
-az acr list -o table
-az sql server list -o table
-az sql db list -g "$RG_SQL" -s "$SQLSRV" -o table --query "[].{name:name,sku:sku.name,tier:sku.tier,status:status}"
-az cognitiveservices account list -o table
-az cognitiveservices account deployment list -g "$RG_AI" -n "$AIACC" -o table
-az monitor log-analytics workspace list -o table
-az monitor app-insights component show -o table
-az storage account list -o table
-az communication list -o table
-az consumption budget list -o table
-for p in Microsoft.App Microsoft.Communication Microsoft.Storage Microsoft.Insights; do echo -n "$p: "; az provider show -n "$p" --query registrationState -o tsv; done
+az account set --subscription "<SUBSCRIPTION_ID_FROM_AZ_ACCOUNT_LIST>"
+az account show --query '{name:name,id:id,state:state}' -o table
 ```
-**Do not run** `keys list`, `list-key`, `show-connection-string`, `secret show`, `get-shared-keys`, `exec`, or anything with `create`, `update`, `set` or `delete`.
+`az account set` changes only which subscription the Azure CLI commands target in this Cloud Shell session; it does not modify Azure resources. Replace the text inside the quotes with the exact ID, and keep the quotes.
 
-**Do 2: SQL inventory.** Portal, SQL database, **Query editor**. Sign in as the owner tells you. Paste the contents of `infra/azure/discovery/sql-inventory.sql` (read-only: schemas, table names, column counts, tier; **no row data**). Copy the result into your private notes. Look for: an existing schema named `assess`, and any existing tables named like ours (`tenants, users, sessions, login_attempts, assessments, questions, participants, attempts, responses, scores, jobs, audit_logs, schema_migrations`). A name clash in `dbo` is harmless (we use schema `assess`) but write it down.
+Now list resource groups and resource names so you can identify the **exact** resource groups and names from Azure output. These commands are read-only:
+```bash
+az group list --query "[].{name:name,location:location}" -o table
+az resource list --query "[].{name:name,type:type,resourceGroup:resourceGroup,region:location}" -o table
+az sql server list --query "[].{name:name,resourceGroup:resourceGroup,location:location,state:state}" -o table
+az cognitiveservices account list --query "[].{name:name,resourceGroup:resourceGroup,kind:kind,location:location,sku:sku.name,state:properties.provisioningState}" -o table
+az acr list --query "[].{name:name,resourceGroup:resourceGroup,location:location,sku:sku.name}" -o table
+az storage account list --query "[].{name:name,resourceGroup:resourceGroup,location:location,sku:sku.name}" -o table
+az monitor log-analytics workspace list --query "[].{name:name,resourceGroup:resourceGroup,location:location}" -o table
+az resource list --resource-type Microsoft.Insights/components --query "[].{name:name,resourceGroup:resourceGroup,location:location}" -o table
+az resource list --resource-type Microsoft.Communication/CommunicationServices --query "[].{name:name,resourceGroup:resourceGroup,location:location,state:properties.provisioningState}" -o table
+```
+If a list command fails with a permission error, record the command and error privately and ask the owner to run that **same read-only command**. These generic resource-list commands avoid requiring the Application Insights or Communication Services CLI extensions.
 
-**Do 3: cost baseline.** Portal, **Cost Management, Cost analysis**, scope = the subscription. Note (a) the cost month to date, (b) the full last month, (c) the top three services. Then **Budgets**: list the existing budgets and their amounts. Answer question 3 of section 1.2 (is $25 for the backend only or for everything).
+Use the results above to identify the SQL server's resource group/name and the AI resource's resource group/name. Replace the text inside each pair of quotes with the exact value from your private notes; remove the `<` and `>` characters, keep the quotes, and keep the variable names unchanged:
+```bash
+RG_SQL="assessment-portal"
+SQLSRV="assessment-portal"
+SQLDB="assessment-db"
+RG_AI="assessment-portal"
+AIACC="<confirm which AI account has the Phi deployment>"
 
-**Do 4: fill the OC-0 answer sheet in your private notes:**
+
+az sql db list --resource-group "$RG_SQL" --server "$SQLSRV" --query "[].{name:name,edition:edition,sku:sku.name,tier:sku.tier,status:status,location:location}" -o table
+az cognitiveservices account deployment list --resource-group "$RG_AI" --name "$AIACC" --query "[].{deployment:name,model:properties.model.name,version:properties.model.version,sku:sku.name,capacity:sku.capacity}" -o table
+az sql server firewall-rule list --resource-group "$RG_SQL" --server "$SQLSRV" --query "[].{name:name,startIp:startIpAddress,endIp:endIpAddress}" -o table
+```
+The SQL and AI commands above failed previously because the resource-group/name variables were empty. This time, only run them after copying the actual values from the preceding list results. Do not infer the database or deployment name.
+
+If `az cognitiveservices account deployment list` fails with `InvalidApiVersionParameter` (the Cloud Shell CLI may send an API version the service no longer accepts), use this read-only ARM request instead. Use `2025-06-01`: Azure's later `NoRegisteredProviderFound` response listed it as a supported API version for `Microsoft.CognitiveServices/accounts` in the target region.
+```bash
+SUB_ID="$(az account show --query id -o tsv)"
+az rest --method get \
+  --url "https://management.azure.com/subscriptions/${SUB_ID}/resourceGroups/${RG_AI}/providers/Microsoft.CognitiveServices/accounts/${AIACC}/deployments?api-version=2025-06-01" \
+  --query "value[].{deployment:name,model:properties.model.name,version:properties.model.version,sku:sku.name,capacity:sku.capacity}" \
+  -o table
+```
+This request reads only deployment metadata. If it returns another API-version error, do not try random versions; record the exact error privately and ask the resource owner to confirm the supported deployment-list API version or check the deployment in the Foundry portal. Do not include the full resource URL, subscription ID, or raw output in the public repo or chat.
+
+Check provider states without registering anything:
+```bash
+for p in Microsoft.App Microsoft.OperationalInsights Microsoft.ContainerRegistry Microsoft.Sql Microsoft.Storage Microsoft.CognitiveServices Microsoft.Communication Microsoft.Insights; do
+  printf '%s: ' "$p"
+  az provider show --namespace "$p" --query registrationState -o tsv
+done
+```
+If `Microsoft.App` is `NotRegistered`, record that and stop the Container Apps lookup. **Do not run `az provider register`** during OC-0; provider registration is a change and must be explicitly listed in the reviewed plan first.
+
+If `Microsoft.App` is registered, list Container Apps environments and apps:
+```bash
+az containerapp env list --query "[].{name:name,resourceGroup:resourceGroup,location:location,state:properties.provisioningState}" -o table
+az containerapp list --query "[].{name:name,resourceGroup:resourceGroup,location:location,state:properties.provisioningState,external:properties.configuration.ingress.external}" -o table
+```
+
+### Do 2: run the SQL metadata inventory in Azure Portal
+
+The SQL inventory is **T-SQL**, not an Azure CLI command. In the Azure portal on the organization laptop, open the exact database identified above: **SQL databases → your target database → Query editor → sign in with the owner-approved Entra account**. Open the repository file [`infra/azure/discovery/sql-inventory.sql`](../infra/azure/discovery/sql-inventory.sql) from the checked-out repository or GitHub, copy its full contents into the Query editor, and select **Run**. The script reads metadata only; it does not read candidate/business rows or modify the database. Save the output privately. Confirm the database identity at the top matches the target you intended, and record whether schema `assess` or `assess.schema_migrations` exists. A local schema definition is not evidence that the Azure schema exists.
+
+If Query editor access is unavailable, stop and ask the database owner to run that read-only script. Do not create a firewall rule, schema, user, or table during OC-0.
+
+### Do 3: record the remaining OC-0 facts
+
+In the Azure portal, open the reported Communication Services resource and check whether an Email Communication Services resource/domain is linked. Also check the target Foundry project/deployment details and ask the owner whether its quota or credentials are shared with the existing portal. Do not open or copy keys/connection strings, send a model request, or change a linkage. Record only yes/no/status and sanitized model/deployment metadata in your private notes.
+
+### Do 4: record cost status
+
+The user has deferred Cost Analysis until later. Do not block read-only inventory on month-to-date/last-month totals, and do not invent or infer spend. Record the reported $50/month backend cap and accepted non-AI planning allowance of about $37/month, but keep the actual budget scope, alert thresholds, service prices, and Phi monthly cost unresolved. The $37 is not a quote and leaves about $13 at the selected values for Phi and overages.
+
+### Do 5: fill the OC-0 answer sheet in your private notes
+
+The answers below summarize the earlier, incomplete query attempt. Replace them with what you verify in this Cloud Shell/portal run; do not treat them as current facts.
 | Item | Answer (real names stay in your private notes) |
 |---|---|
 | Resource group(s) of: Container Apps environment, registry, Log Analytics, Application Insights, AI resource, SQL server | |
-| Existing container apps (names only; **we never touch them**) | |
-| Registry exists? (yes / no) Container Apps environment exists? (yes / no) | |
-| SQL database tier, serverless or not, auto-pause? | |
-| Existing schemas / name clashes / schema `assess` already there? | |
-| AI deployments: name, model, version, capacity; is quota shared with the portal? | |
-| Storage account to reuse? (default: create a new one for isolation) | |
-| ACS / email resources that already exist? | |
-| Providers not registered | |
-| Cost month to date, last month, existing budgets | |
-| Budget scope: backend only or whole subscription | |
-| Policies that could block us | |
-| Account owner who co-signs | |
+| Existing container apps (names only; **we never touch them**) | Unknown; no Container Apps query was run because `Microsoft.App` is `NotRegistered`. |
+| Registry exists? (yes / no) Container Apps environment exists? (yes / no) | ACR listing returned no rows in the reported inventory; `Microsoft.ContainerRegistry` is `NotRegistered`. This does not prove registry absence in another scope. Container Apps environment is unknown because `Microsoft.App` is `NotRegistered`. |
+| SQL database tier, serverless or not, auto-pause? | User-provided SQL metadata reports General Purpose, `GP_S_Gen5_2`, compatibility 170; verify serverless/auto-pause and database identity with owner. |
+| Existing schemas / name clashes / schema `assess` already there? | User-provided SQL Query Editor schema result lists built-in schemas only; `assess` was not present in the result. Confirm the full inventory/table-list query and owner before any DB change. |
+| AI deployments: name, model, version, capacity; is quota shared with the portal? | User-provided Cloud Shell output confirms `Phi-4-mini-instruct`, model version `1`, `GlobalStandard`, capacity `20` in North Central US. Ask owner whether quota/credentials are shared; API contract and pricing still unverified. |
+| Storage account to reuse? (default: create a new one for isolation) | Storage query returned no rows; confirm scope/access, then use the create candidate only if the approved plan still calls for it. |
+| ACS / email resources that already exist? | Owner reports ACS exists without configured Email service/domain; verify Email linkage and domain in the portal. |
+| Providers not registered | Cloud Shell provider query reports `Microsoft.App` and `Microsoft.ContainerRegistry` as `NotRegistered`; the other queried providers (`Microsoft.OperationalInsights`, `Microsoft.Sql`, `Microsoft.Storage`, `Microsoft.CognitiveServices`, `Microsoft.Communication`, `Microsoft.Insights`) are `Registered`. Do not register during OC-0. |
+| Cost baseline | Deferred by user; month-to-date not checked; previous-month figure reported as about $50 with scope unknown |
+| Reported planning ceiling | $50/month, backend-only; Azure budget scope and alert thresholds unverified |
+| Policies that could block us | Owner reports none; verify through the portal/owner before provisioning. |
+| Account owner who co-signs | Confirmed separately; personal name omitted from this public repository. |
 
-**Do 5: report to your backend developer** (section 6 template) using **placeholders instead of real names** (`<RG>`, `<SQL_SERVER>`, `<AI_RESOURCE>`, `<ACR>`): which resources exist (yes/no), regions, SKU classes, clash yes/no, cost numbers rounded, the budget scope answer. The agent then fills `docs/PROVISIONING_PLAN.md`.
+### Do 6: report the sanitized OC-0 findings
+
+Use the section 6 report template. Share only whether resources exist, regions, SKU/tier classes, whether schema `assess` exists, the provider states, and any errors that blocked a query. Replace all real names with placeholders such as `<RG>`, `<SQL_SERVER>`, `<AI_RESOURCE>`, and `<ACR>`. Do not send subscription IDs, hostnames, emails, keys, connection strings, screenshots with identifying details, or raw CLI output. The backend developer uses the sanitized report to update `docs/PROVISIONING_PLAN.md`.
 
 **Expect:** you can answer every row of the sheet; nothing in Azure changed.
-**Test:** `az resource list -o table` before and after shows the same count (save the count).
-**If it fails:** *AuthorizationFailed on a list command*: you lack Reader on that group; ask the owner for Reader or let them run that one command. *Query editor cannot sign in*: ask the owner for the Entra admin login or for them to run the T-SQL. *`inventory.sh` not found*: use the fallback commands.
+**Test:** every Azure CLI command used above is a read-only `list`/`show`/`account` query, and the SQL script contains metadata `SELECT` statements only. No provider registration or Azure resource changes occur during OC-0.
+**If it fails:** *AuthorizationFailed on a list command*: you lack Reader on that group; ask the owner to run that read-only command. *Query editor cannot sign in*: ask the owner to run the T-SQL; never request their password. *A command reports an empty result*: record "no rows returned" and confirm subscription/scope with the owner; do not assume the resource does not exist in another resource group or subscription.
 **Evidence:** your private notes (never the repository).
 
-**Proceed when (go/no-go):** the answer sheet is complete, the SQL inventory and cost baseline are saved, the budget scope question is answered, and the OC-0 report was sent. **Nothing was created or changed.**
+**Proceed when (go/no-go):** the resource answer sheet and SQL inventory are complete and a sanitized OC-0 report was prepared. Confirm the signed plan is committed/merged to `main` before using provisioning scripts from a fresh clone. Cost Analysis is deferred; the baseline, budget scope, thresholds, and Phi cost remain unresolved. **Nothing is created or changed during OC-0.**
 **If this is not true, stop here. Do not start the next checkpoint.**
 
 ---
@@ -285,7 +366,7 @@ for p in Microsoft.App Microsoft.Communication Microsoft.Storage Microsoft.Insig
 
 **Do:**
 1. Open `docs/PROVISIONING_PLAN.md` on GitHub. For **each row** (REUSE / CREATE / IAM-CHANGE / DB-CHANGE / NONE) check with the account owner: (a) the mode is right for what OC-0 found, (b) nothing existing is modified, (c) the estimated cost is believable (compare with the Azure pricing calculator and your Cost Management baseline), (d) the risk is accepted.
-2. Confirm the whole plan fits the **$25.00 per month** ceiling for the scope you agreed. If it does not, **do not sign**; send the numbers to your backend developer.
+2. Confirm the plan's cost estimates fit the **$50.00/month backend-only** ceiling. Verify the budget scope and thresholds; if either is unclear or the estimates exceed the cap, **do not sign**.
 3. Confirm the list "what is NOT touched" matches your OC-0 notes (portal apps, portal tables, the AI key stays unchanged).
 4. When you **and the account owner** agree, edit the line in the plan from `SIGN-OFF: <not approved>` to exactly:
    `SIGN-OFF: APPROVED by <your initials> and <owner initials> on <YYYY-MM-DD>`
@@ -333,7 +414,7 @@ APPINSIGHTS_CS=$(az monitor app-insights component show --app "$APPI" -g "$RG_MO
 ```
 Save it in your password manager as `appinsights-cs` (treat it as a secret).
 
-**Do 4: the budget (the cost guard).** Portal, **Cost Management, Budgets, Add**. Scope: the **subscription** if the $25 ceiling is for everything, otherwise add a **filter on tag `project` = `ai-assessment`** (resources we create carry this tag). Amount **25.00**, monthly, alerts at **50%, 80% and 100%** (that is $12.50, $20.00, $25.00) to your office email and the owner's. Note: a budget **alerts, it does not stop spending.** (CLI alternative **(confirm)**: `az consumption budget create --help`; the portal is easier because of the notification settings.)
+**Do 4: verify the budget (the cost alert, not a spending control).** The intended cap is **$50.00/month for this backend only**, with alerts at **50%, 80% and 100%** ($25, $40, $50). The user reports a $50 budget exists, but its scope and alert thresholds are not verified. In Cost Management, confirm the scope includes only resources tagged `project=ai-assessment`; do not use a subscription- or shared-resource-group budget as if it were backend-only. The current `10-core.sh` CLI budget command scopes the entire resource group and is disabled by default; do not enable it unless the signed plan confirms that the group contains only backend resources. A budget alerts; it does not stop spending.
 
 **Expect:** the reused resources show with the expected names and regions; anything created shows `Succeeded`.
 **Test:** `az resource list --tag project=ai-assessment -o table` lists only what we created (possibly nothing yet). The budget appears under **Budgets**.
@@ -423,33 +504,23 @@ must print `null` (private).
 
 ---
 
-## OC-1D: Existing AI resource with GPT-4o (reuse; no creation)
-**Needs:** OC-1A. The plan says REUSE. **Never regenerate the key: the portal uses it.**
+## OC-1D: Phi-4-mini-instruct Serverless API (verify before use)
+**Needs:** OC-1A and an owner-approved plan. The user reports **Phi-4-mini-instruct**, **Serverless API / pay-as-you-go**, **North Central US**. These are user-provided target details, not independently verified. **Never regenerate a shared key.**
 
-**Do 1: verify the deployment (read-only):**
-```bash
-az cognitiveservices account deployment list -g "$RG_AI" -n "$AIACC" -o table
-az cognitiveservices account deployment show -g "$RG_AI" -n "$AIACC" --deployment-name "$AI_DEPLOY" \
-   --query "{model:properties.model.name,version:properties.model.version,state:properties.provisioningState,capacity:sku.capacity}" -o table
-```
-The `model` must be `gpt-4o` and the state `Succeeded`. Write down the deployment **name** (`AI_DEPLOY`): the app uses the name as the model.
+**Important:** Do **not** run `infra/azure/40-ai.sh` or its `az cognitiveservices account deployment` commands for this target. That script checks a Cognitive Services account deployment; it does not verify that a Microsoft Foundry Serverless API endpoint is the same resource type. Running `40-ai.sh` without an explicit mode now fails safely with this explanation.
 
-**Do 2: the endpoint host.** The backend calls the OpenAI-compatible **v1 route**, like the portal's `ai_service/`. `FOUNDRY_ENDPOINT` is the **host only, no path**. Take the host from the same place the portal team does (section 1.2 question 8); typically `https://<AIACC>.services.ai.azure.com`. You can also read it in the portal: the AI resource, **Keys and Endpoint** (use the host of the endpoint that works with `/openai/v1/`).
-```bash
-FOUNDRY_ENDPOINT="https://${AIACC}.services.ai.azure.com"      # (confirm) must match what ai_service uses
-```
-**Do 3: the key.** Portal, the AI resource, **Keys and Endpoint**, copy **Key 1** (or `az cognitiveservices account keys list -g "$RG_AI" -n "$AIACC" --query key1 -o tsv`; **only list, never regenerate**). Save it in your password manager as `foundry-key`.
+**User-reported endpoint details (2026-11-03):** model `Phi-4-mini-instruct`; the endpoint path is `/openai/v1/chat/completions`, so set `FOUNDRY_API_STYLE=v1`; rate limits are 20,000 tokens/minute and 20 requests/minute. These values have not been independently checked in the portal. The actual endpoint hostname must stay in the owner's private notes/secret store, not this public repository.
 
-**Style settings used later (OC-1F):** `FOUNDRY_API_STYLE=v1` (default). `FOUNDRY_API_VERSION` stays **unset**. If OC-1H shows a 404 on the v1 route, the fallback is `FOUNDRY_API_STYLE=azure-deployments` plus a GA `FOUNDRY_API_VERSION`; write whichever works in the ledger with the date.
+**Do 1: verify in the Microsoft Foundry portal (read-only):**
+- Confirm the deployment's exact model/catalog identifier is `Phi-4-mini-instruct`.
+- Confirm deployment type is Serverless API / pay-as-you-go and region is North Central US.
+- Confirm the reported rate limits and record input/output prices in private notes. Do not copy endpoint credentials, full hostname, or keys into chat, repo files, or logs.
 
-**Quota note:** the deployment's capacity is **shared with the portal**. Our safety caps (`AI_DAILY_TOKEN_CAP`, `AI_MAX_OUTPUT_TOKENS`, 20 generation calls per tenant per day) protect it; set them in OC-1F.
+**Do 2: verify API compatibility before setting secrets.** The provided route confirms the v1 URL style, but the current adapter also sends `api-key`, `model`, `max_tokens`, `temperature`, and JSON response mode, and expects standard chat-completions response and token-usage fields. Confirm all of these plus the authentication method and rate-limit/retry behavior in the endpoint documentation/portal. The app expects `FOUNDRY_ENDPOINT` to be the service origin only; it appends `/openai/v1/chat/completions` itself. Do not store the route twice or guess the auth key type. If any contract differs, stop and update/test the adapter before deployment; do not use a live probe as a compatibility workaround.
 
-**Expect:** the deployment is `gpt-4o`, `Succeeded`; the endpoint host and key are saved.
-**Test:** the real call test is `probe foundry` in OC-1H.
-**If it fails:** *deployment not found*: you used a model name instead of the deployment name. *No access to keys*: ask the owner to copy Key 1 to you through the password manager; do not ask for the portal's other secrets. *Capacity very low*: tell your backend developer; do not change the deployment.
-**Evidence:** the deployment `show` output (names stay private).
+**Do 3: record workload and price inputs.** User planning inputs are dynamic assessments/month, 20 candidates/assessment, and variable generation/marking calls. Obtain the actual pay-as-you-go input/output rates and then bound monthly token usage. The reported TPM/RPM are throughput limits, not monthly spend caps. The plan's 200,000-token cap is per tenant per day, not an aggregate monthly spending cap.
 
-**Proceed when (go/no-go):** the `gpt-4o` deployment is `Succeeded`, the deployment name, endpoint host and key are saved, and the style decision (`v1`) is noted. (If access is pending, mark BLOCKED and see the blockers matrix.)
+**Expect / proceed when:** the owner confirms the model, serverless deployment, region, auth/request contract, quota, and pricing; the code adapter supports that contract; and a small authorized probe passes after the signed plan is in the repository. Until then, OC-1D remains BLOCKED and do not configure live AI secrets or run a real model call.
 **If this is not true, stop here. Do not start the next checkpoint.**
 
 ---
@@ -535,9 +606,10 @@ az containerapp secret set -n "$API_APP" -g "$RG" --secrets \
    "platform-key=$PLATFORM_KEY" \
    "appinsights-cs=$APPINSIGHTS_CS" >/dev/null
 ```
-**Do 5: the API address, then the settings** (secrets by reference, others as plain values). For the three cost-cap values and the sampling value use the defaults shown in `.env.azure.example`:
+**Do 5: the API address, then the settings** (secrets by reference, others as plain values). Only do this after OC-1D verifies auth/request compatibility. Keep the actual service origin in the secret store; configure the origin only (not the `/openai/v1/chat/completions` path). For the three cost-cap values and the sampling value use the defaults shown in `.env.azure.example`:
 ```bash
 API_FQDN=$(az containerapp show -n "$API_APP" -g "$RG" --query properties.configuration.ingress.fqdn -o tsv)
+AI_API_STYLE="v1"
 
 az containerapp update -n "$API_APP" -g "$RG" --set-env-vars \
   "DATABASE_URL=secretref:database-url" \
@@ -549,7 +621,7 @@ az containerapp update -n "$API_APP" -g "$RG" --set-env-vars \
   "PLATFORM_KEY=secretref:platform-key" \
   "APPLICATIONINSIGHTS_CONNECTION_STRING=secretref:appinsights-cs" \
   "DB_SCHEMA=assess" \
-  "FOUNDRY_API_STYLE=v1" \
+  "FOUNDRY_API_STYLE=$AI_API_STYLE" \
   "FOUNDRY_DEPLOYMENT=$AI_DEPLOY" \
   "AI_MAX_OUTPUT_TOKENS=<default from .env.azure.example>" \
   "AI_DAILY_TOKEN_CAP=<default from .env.azure.example>" \
@@ -592,6 +664,9 @@ GH_PRINCIPAL=$(az identity show -g "$RG" -n assess-github-deployer --query princ
 az identity federated-credential create -g "$RG" --identity-name assess-github-deployer \
    --name gh-main --issuer "https://token.actions.githubusercontent.com" \
    --subject "repo:Siddharajparkar/We_Select-:ref:refs/heads/main" --audiences "api://AzureADTokenExchange"
+az identity federated-credential create -g "$RG" --identity-name assess-github-deployer \
+   --name gh-production --issuer "https://token.actions.githubusercontent.com" \
+   --subject "repo:Siddharajparkar/We_Select-:environment:production" --audiences "api://AzureADTokenExchange"
 APP_ID=$(az containerapp show -n "$API_APP" -g "$RG" --query id -o tsv)
 ACR_ID=$(az acr show -n "$ACR" -g "$RG_ACR" --query id -o tsv)
 # NARROW scope: only our app and the registry. Nothing on the resource group, nothing on the portal's apps.
@@ -606,6 +681,9 @@ az ad sp create --id "$GH_CLIENT_ID"
 az ad app federated-credential create --id "$GH_CLIENT_ID" --parameters '{
   "name":"gh-main","issuer":"https://token.actions.githubusercontent.com",
   "subject":"repo:Siddharajparkar/We_Select-:ref:refs/heads/main","audiences":["api://AzureADTokenExchange"]}'
+az ad app federated-credential create --id "$GH_CLIENT_ID" --parameters '{
+  "name":"gh-production","issuer":"https://token.actions.githubusercontent.com",
+  "subject":"repo:Siddharajparkar/We_Select-:environment:production","audiences":["api://AzureADTokenExchange"]}'
 az role assignment create --assignee "$GH_CLIENT_ID" --role Contributor --scope "$APP_ID"
 az role assignment create --assignee "$GH_CLIENT_ID" --role AcrPush --scope "$ACR_ID"
 ```
@@ -626,10 +704,10 @@ az role assignment create --assignee "$GH_CLIENT_ID" --role AcrPush --scope "$AC
 Because the repository is **public**, store the tenant, subscription and client ids as **secrets** (as in the table), not as variables, and never print them in a workflow.
 
 **Test:** nothing yet; it is tested by the first pipeline run (OC-3).
-**If it fails later (`AADSTS70021`):** the subject must be exactly `repo:Siddharajparkar/We_Select-:ref:refs/heads/main`, **case-sensitive**. If you later add a GitHub **Environment** to a job, the subject changes to `...:environment:<name>`; add a second federated credential for it. If the repository is ever moved or renamed, create a new federated credential for the new name.
+**If it fails later (`AADSTS70021`):** subjects must match the workflows, exactly and case-sensitively. The deploy job uses the `production` GitHub Environment subject `repo:Siddharajparkar/We_Select-:environment:production`; nightly and rollback jobs use `repo:Siddharajparkar/We_Select-:ref:refs/heads/main`. The environment subject is required because `deploy.yml` declares `environment: production`. If workflow environments or branch names change, update the matching federated credential after review. If the repository is moved or renamed, create credentials for the new name.
 **Evidence:** list of secret and variable **names** (never values).
 
-**Proceed when (go/no-go):** the federated credential exists with the exact subject above, the identity has `Contributor` on **the `assess-api` app only** and `AcrPush` on the registry, and the three `AZURE_*` secrets plus the variables are set in GitHub.
+**Proceed when (go/no-go):** both federated credentials exist with the exact workflow subjects above, the identity has `Contributor` on **the `assess-api` app only** and `AcrPush` on the registry, and the three `AZURE_*` secrets plus the variables are set in GitHub.
 **If this is not true, stop here. Do not start the next checkpoint.**
 
 ---
@@ -651,7 +729,7 @@ If `exec` is not usable in Cloud Shell, open the portal: the Container App, **Mo
 PROBE config  PASS  ...  all required variables present
 PROBE sql     PASS  ...  connected, schema assess ok, dbo not readable, avg_rtt=<n> ms
 PROBE blob    PASS  ...  put/get/delete ok, anonymous access denied
-PROBE foundry PASS  ...  completion ok, tokens reported, style=v1
+PROBE foundry PASS  ...  completion ok, tokens reported, style=<verified supported style>
 PROBE insights PASS ...  marker=<some-id>
 PROBE ALL PASS
 ```
@@ -801,8 +879,8 @@ SELECT TOP 3 id, LEN(job_description) AS jd_chars, jd_file_name FROM assess.asse
 
 ---
 
-## OC-6: Real GPT-4o generation (Phase 6)
-**Needs:** OC-5, OC-1D, `PROBE foundry PASS` in OC-1H (`FOUNDRY_API_STYLE=v1`).
+## OC-6: Real Microsoft Phi generation (Phase 6)
+**Needs:** OC-5 and OC-1D complete, including an adapter update if required; then a passing `PROBE foundry` in OC-1H using the verified contract.
 **Test:** `live-e2e` with `upto_phase=6` and `with_ai=true`. (Costs a few cents of tokens.)
 **Expect:** `POST .../generate` returns `202` with a `jobId`; polling `GET /api/v1/jobs/<jobId>` goes `queued`, `running`, `done` within about a minute with `result.questionsCreated >= 1`; questions have valid shapes (4 options, `correctAnswer` A-D, explanation; descriptive ones have a rubric); regenerate one question keeps its id and position; approve works only when **every section holds exactly its configured number of questions** (otherwise `409 SECTION_INCOMPLETE` with expected and actual counts; no questions at all gives `409 NO_QUESTIONS`; fix by regenerating, adding custom questions or deleting extras); editing after approval returns `409`.
 **Verify in Azure:**
@@ -810,13 +888,13 @@ SELECT TOP 3 id, LEN(job_description) AS jd_chars, jd_file_name FROM assess.asse
 SELECT TOP 5 type, status, attempts, tokens_used, error FROM assess.jobs ORDER BY created_at DESC;   -- tokens_used > 0
 ```
 ```kusto
-dependencies | where target has "openai" | order by timestamp desc | take 5
+dependencies | order by timestamp desc | take 5
 ContainerAppConsoleLogs_CL | where Log_s has "job_done" or Log_s has "job_retry" or Log_s has "job_failed" | order by TimeGenerated desc | take 10   // ledger AZ-030: ids, types, durations, tokens - never prompts
 ```
-**If it fails:** *job `failed` with `errorCode` `AI_OUTPUT_INVALID`*: the model answered three times with unusable JSON; read the console logs for `ai_output_invalid` (reasons only, no content), try again, and tell your backend developer. *job `queued` again with "The AI service is temporarily unavailable"*: HTTP 4xx/5xx from Azure (check API style below); the engine retries up to 3 times (5 s, 10 s). *404 on the v1 route*: set `FOUNDRY_API_STYLE=azure-deployments` and a GA `FOUNDRY_API_VERSION`, then record it in the ledger. *404 DeploymentNotFound*: `FOUNDRY_DEPLOYMENT` must equal the deployment **name**. *429*: quota (shared with the portal); the provider waits 2 s and retries once, then the job is re-queued with the `Retry-After` delay (max 3 attempts); do not change the portal's deployment. *Timeout*: region latency; note it in the ledger.
+**If it fails:** *job `failed` with `errorCode` `AI_OUTPUT_INVALID`*: stop further calls and verify Phi output compatibility using sanitized diagnostics only. For HTTP 4xx/5xx, 404, or authentication errors, verify the documented Serverless API contract and update/test the adapter; do not try another route or key by guess. *429*: the current adapter retries once after 2 seconds; Phi's retry/rate-limit contract remains unverified, so update the adapter if the endpoint requires different handling. Do not assume quota is shared with the portal. *Timeout*: check documented endpoint/region latency and record it.
 **Evidence:** job rows and the two KQL results.
 
-**Proceed when (go/no-go):** the generation job reaches `done` with `result.questionsCreated >= 1`, `jobs.tokens_used > 0`, the console logs show `job_done` (and Application Insights shows a dependency to the OpenAI host), regenerate keeps the question's id and position, approve is refused with `409 SECTION_INCOMPLETE` until every section has exactly its configured count and then succeeds, and editing after approval returns `409`.
+**Proceed when (go/no-go):** after OC-1D's endpoint contract is verified and the adapter is updated if needed, the generation job reaches `done` with `result.questionsCreated >= 1`, `jobs.tokens_used > 0`, the console logs show `job_done` (and Application Insights shows a dependency to the Phi endpoint), regenerate keeps the question's id and position, approve is refused with `409 SECTION_INCOMPLETE` until every section has exactly its configured count and then succeeds, and editing after approval returns `409`.
 **If this is not true, stop here. Do not start the next checkpoint.**
 
 
@@ -891,7 +969,7 @@ Open both files: CSV opens in Excel without formula warnings; PDF shows every na
 
 ## OC-11: Alerts, budget alerts, read-only backup check, small load test (Phase 11)
 **Needs:** OC-3 or later; the action-group email from section 1.2 and the budget from OC-1A.
-**Do 1: alerts.** Run `infra/azure/80-monitoring.sh` (read the plan first with `--plan`, then `DRY_RUN=0`). It creates an action group (email) and the **cheapest useful set** of alert rules for `assess-api` only: failed requests, exceptions, job failures and restarts. **An availability test is created only if the signed plan says so** (it costs money). **Test:** temporarily lower one threshold (or call a route that returns an error repeatedly) and confirm the email alert arrives; then restore the threshold. Also confirm the **budget alerts** from OC-1A exist at 50%, 80% and 100% ($12.50, $20.00, $25.00).
+**Do 1: alerts.** Run `infra/azure/80-monitoring.sh` (read the plan first with `--plan`, then `DRY_RUN=0`). It creates an action group (email) and the **cheapest useful set** of alert rules for `assess-api` only: failed requests, exceptions, job failures and restarts. **An availability test is created only if the signed plan says so** (it costs money). **Test:** temporarily lower one threshold (or call a route that returns an error repeatedly) and confirm the email alert arrives; then restore the threshold. Also confirm the backend budget alerts from OC-1A exist at 50%, 80% and 100% ($25, $40, $50) and that their scope is not shared with portal resources.
 **Do 2: backup check (read-only).** Do **not** restore the shared portal database (a restore copies it and costs money):
 ```bash
 az sql db show -g "$RG_SQL" -s "$SQLSRV" -n "$SQLDB" --query "earliestRestoreDate" -o tsv
@@ -900,7 +978,7 @@ az sql db str-policy show -g "$RG_SQL" -s "$SQLSRV" -n "$SQLDB" -o table      # 
 Write down the earliest restore date and the retention days. (A real point-in-time restore is done **only if the database owner asks for it**, into a temporary copy that is deleted the same day.)
 **Do 3: small load test** (k6): run workflow **`load-test`** with `profile=target` (20 users, at most 5 minutes), or from a machine with k6: `k6 run scripts/load/exam.js -e BASE_URL=https://<API_FQDN>`. Run it **once**, after telling the account owner, because it uses the shared database and consumes AI quota only if you enable AI (keep AI **off** for the load test). There is **no stress profile**.
 **Expect:** p95 below 500 ms for autosave and list calls, error rate 0 percent at 20 users. Watch SQL (portal, Metrics, DTU or CPU percentage; the portal shares this database) and the container CPU.
-**If it fails:** *p95 high or the database near its limit*: write down the numbers; the smallest fixes are a missing index or fewer round trips (the database is in another region). Do **not** raise the SQL tier or the container size without asking your backend developer, because of the $25 ceiling. Report back with the numbers (section 6).
+**If it fails:** *p95 high or the database near its limit*: write down the numbers; the smallest fixes are a missing index or fewer round trips (the database is in another region). Do **not** raise the SQL tier or the container size without asking your backend developer, because of the $50/month backend ceiling. Report back with the numbers (section 6).
 **Evidence:** alert email screenshot, earliest restore date and retention, k6 summary.
 
 **Proceed when (go/no-go):** an alert email was received, the budget alerts exist, the backup dates are written down, and the load test at 20 users shows p95 below 500 ms with 0 percent errors, **or** the bottleneck is written down with a decision from your teammate.
@@ -913,7 +991,7 @@ Write down the earliest restore date and the retention days. (A real point-in-ti
 **Needs:** OC-3 (already deploying).
 **Do:**
 1. **Branch protection** on `main` (Settings, Branches): require a pull request, require status checks `fast`, `sql`, `image`, `security` (names must match the workflow job names exactly), require branches to be up to date, block force pushes.
-2. Optional: GitHub **Environment** `production` with a required reviewer. If you enable it, add the second federated credential (OC-1G note) with subject `repo:Siddharajparkar/We_Select-:environment:production`.
+2. The deploy job already uses GitHub **Environment** `production`, and OC-1G creates its matching federated credential. Add a required reviewer to that environment if policy requires it; do not remove the environment without updating the OIDC subject and plan.
 3. **Proof f (happy path):** merge a small change; all jobs green; new revision serves the new commit sha (check the `x-app-version` header); Application Insights shows a **release annotation**.
 4. **Proof h (manual rollback):** run workflow **`rollback`** with an older commit sha as `image_tag`; the smoke test passes and the header shows the old sha. Then deploy the latest again.
 5. **Proof g (automatic rollback):** only after your teammate agrees, on a throwaway branch make `/api/v1/health` return 500, merge it, watch the pipeline fail at smoke and **restore the previous image automatically**. Then revert. (This affects only `assess-api`; the portal is untouched. Skip it if the API is in demo use.)
@@ -931,7 +1009,7 @@ Write down the earliest restore date and the retention days. (A real point-in-ti
 ## OC-13: Full acceptance, lock-down of our own resources, handover (Phase 13)
 **Needs:** OC-1A to OC-12. (There is **no clean-slate rehearsal**: a second environment would cost money and break the zero-touch rule.)
 
-**Acceptance run:** follow the 12 stages in Prompt A section 13.2 using the `live-e2e` workflow with `upto_phase=13`, `with_ai=true`, `with_email=true` and `scripts/e2e/acceptance.mjs`. In short: create tenant, assessment with a real PDF job description, generate with GPT-4o, review and approve (every section must hold exactly its configured number of questions), invite your own mailbox, candidate flow with the real token, marking, override, results, CSV and PDF, auto-submit, resend, cross-tenant check, close.
+**Acceptance run:** follow the 12 stages in Prompt A section 13.2 using the `live-e2e` workflow with `upto_phase=13`, `with_ai=true`, `with_email=true` and `scripts/e2e/acceptance.mjs`. In short: create tenant, assessment with a real PDF job description, generate with the owner-approved Microsoft Phi deployment, review and approve (every section must hold exactly its configured number of questions), invite your own mailbox, candidate flow with the real token, marking, override, results, CSV and PDF, auto-submit, resend, cross-tenant check, close.
 **Expect:** all stages pass; no exceptions in Application Insights (`exceptions | where timestamp > ago(1h)` returns nothing important).
 
 **Lock-down (only our own resources, never the portal's):**
@@ -953,7 +1031,7 @@ az lock create --name no-delete --lock-type CanNotDelete -g "$RG" --resource-nam
 ```
 Also: change the test passwords of the E2E tenants. Do **not** rotate the AI key or the SQL admin password: the portal uses them. Delete the test data if the company requires it (the E2E and acceptance tenants contain only fake data; use the retention setting or ask your backend developer for a cleanup script).
 
-**Cost check:** in Cost Management compare the month-to-date cost of everything tagged `project=ai-assessment` (plus any shared-cost share the owner assigns) with the **$25.00** ceiling. Write the real numbers in `docs/PROVISIONING_PLAN.md` (cost section) without invented estimates.
+**Cost check:** when Cost Analysis is reviewed, compare the month-to-date cost of everything tagged `project=ai-assessment` (plus any shared-cost share the owner assigns) with the **$50.00/month backend ceiling**. Write real numbers in `docs/PROVISIONING_PLAN.md` without invented estimates.
 
 **Go-live switch for the frontend** (only when the frontend team has deployed the portal with an `/api/*` proxy):
 ```bash
@@ -965,7 +1043,7 @@ The frontend team must proxy to the **internal short name over plain http**: `ht
 **Handover:** commit the updated ledger (every row now `VERIFIED` or `FIXED-AT-OFFICE`; no real names), the status board (without real names), and notes. Give the frontend team `docs/frontend-handover.md` and `docs/openapi.yaml`.
 **Evidence:** acceptance workflow link, lock listing, final ledger, cost numbers.
 
-**Proceed when (go/no-go):** all 12 acceptance stages passed, no important exceptions in Application Insights, the temporary firewall rules you added are gone, the two app secrets are rotated, locks exist on our own resources only, the actual cost is written next to the $25 ceiling, and no ledger row is still `UNVERIFIED` without a written reason.
+**Proceed when (go/no-go):** all 12 acceptance stages passed, no important exceptions in Application Insights, the temporary firewall rules you added are gone, the two app secrets are rotated, locks exist on our own resources only, the actual cost is written next to the $50 backend ceiling when Cost Analysis is reviewed, and no ledger row is still `UNVERIFIED` without a written reason.
 **If this is not true, stop here. Do not start the next checkpoint.**
 
 
@@ -1006,13 +1084,13 @@ Start your message to the agent with: *"This is an update to the original end-to
 | Revision stuck `Activating` or `Failed` | wrong target port, failing probe, missing secret, migration error | `az containerapp logs show -n "$API_APP" -g "$RG" --type system` and `--type console` |
 | Image pull `unauthorized` | registry not attached or `AcrPull` missing | OC-1F Do 2 |
 | Pipeline push `unauthorized` | `AcrPush` missing | OC-1G |
-| `AADSTS70021` | OIDC subject mismatch | subject must be exactly `repo:Siddharajparkar/We_Select-:ref:refs/heads/main` (case-sensitive) |
+| `AADSTS70021` | OIDC subject mismatch | deploy uses `repo:Siddharajparkar/We_Select-:environment:production`; nightly/rollback use `repo:Siddharajparkar/We_Select-:ref:refs/heads/main` (case-sensitive) |
 | Deploy `AuthorizationFailed` | narrow scope too narrow | widen only as the error says; record it (OC-1G) |
 | SQL login failed | wrong password, or firewall | check the secret; confirm the same firewall path the portal uses; for manual access use the Query editor with the owner's agreement and remove any rule you add |
 | Migrations hang | applock held by another start | wait 60 s; ensure only one revision starts at a time |
 | 404 DeploymentNotFound (Foundry) | wrong deployment name | `FOUNDRY_DEPLOYMENT` = deployment **name** |
-| 404 on the AI v1 route | API style assumption wrong | try `FOUNDRY_API_STYLE=azure-deployments` plus a GA `FOUNDRY_API_VERSION`; record in the ledger |
-| 429 from Foundry | shared quota | tell your backend developer; do not change the portal's deployment; the daily token cap helps |
+| Phi endpoint 4xx/5xx or authentication error | endpoint/API contract not confirmed or adapter incompatible | stop probing; verify contract with the owner and update/test adapter |
+| 429 from Phi endpoint | endpoint quota/rate limit | current adapter retries once after 2 seconds; verify/update against endpoint guidance and do not assume shared quota |
 | Monthly cost alert at 50% | spending above plan | check Cost Management by tag and by service; lower sampling, stop the load test, tell your backend developer |
 | ACS `DomainNotLinked` / `Unauthorized` | domain not connected, wrong key | OC-1E linking; re-read the connection string |
 | Emails in spam | Azure-managed domain | accept for tests; ask IT for a verified custom domain for real use |
@@ -1026,8 +1104,8 @@ Start your message to the agent with: *"This is an update to the original end-to
 
 # 8. Cost and cleanup
 
-- **Ceiling:** **$25.00 per month**, alerts at 50 / 80 / 100 percent (OC-1A). A budget alerts; it does not stop spending. Check **Cost Management** weekly during the first month.
-- **Cost drivers for our part:** the always-on `assess-api` replica (0.25 vCPU / 0.5 GiB, min = max = 1), Log Analytics and Application Insights ingestion (lower the sampling percentage or set a daily cap if it grows), GPT-4o tokens (the daily token cap protects the shared quota and the bill), email (per message), Blob storage (very small), and the registry if it had to be created. The SQL database and the AI resource are **reused**, so they add no new fixed fee from us, but our load shares their capacity. Do not rely on estimates in documents; use the real numbers from Cost Management.
+- **Ceiling:** **$50.00 per month for this backend**, intended alerts at 50 / 80 / 100 percent ($25 / $40 / $50; OC-1A). Verify the actual budget scope before relying on it. A budget alerts; it does not stop spending. Check **Cost Management** weekly during the first month.
+- **Cost drivers for our part:** the always-on `assess-api` replica (0.25 vCPU / 0.5 GiB, min = max = 1), Log Analytics and Application Insights ingestion (lower the sampling percentage or set a daily cap if it grows), Microsoft Phi usage or provisioned hosting (exact model/deployment pricing must be verified; the per-tenant daily cap is not a global monthly cap), email (per message), Blob storage (very small), and the registry if it had to be created. The SQL database and AI resource may be **reused**, but incremental usage can still affect the shared bill. Do not rely on estimates in documents; use the real numbers from Cost Management.
 - **Never delete a resource group** in this subscription: it holds the portal. Remove our resources **by tag**: list them with `az resource list --tag project=ai-assessment -o table`, and delete only items that are in the signed plan.
 - **Teardown** (only with the account owner's agreement): `bash infra/azure/99-teardown.sh` first prints what it would delete (resources tagged `project=ai-assessment` and listed in the plan; never a group, never the portal's resources) and asks for a typed confirmation. Remove our database objects separately and carefully: `DROP` the `assess` tables, then the schema, then the user `assess_app`, as the database owner, never touching other schemas.
 
@@ -1035,9 +1113,9 @@ Start your message to the agent with: *"This is an update to the original end-to
 
 - [ ] OC-0 and OC-PLAN done; the signed plan exists; nothing was changed before the sign-off.
 - [ ] OC-1A to OC-13 all `PASS` with evidence, or `PARTIAL` with a written reason and a ledger entry.
-- [ ] All services used by the API verified live: the existing SQL (schema `assess` only), Blob, the existing AI resource with GPT-4o (v1 route), Communication Services, Application Insights, plus the registry and Container Apps.
+- [ ] All services used by the API verified live: the existing SQL (schema `assess` only), Blob, the owner-approved Microsoft Phi deployment and its verified API route, Communication Services, Application Insights, plus the registry and Container Apps.
 - [ ] The portal's resources and tables are unchanged (OC-2 comparison, OC-1F app list).
 - [ ] A merge to `main` deploys only after every test stage is green; rollback proven.
 - [ ] No secrets or real names in git, logs, screenshots, tickets or chat; secrets only in Container Apps secrets, GitHub secrets and your password manager.
-- [ ] Firewall rules you added removed; locks on our own resources; budget alerts exist; actual cost written next to $25.
+- [ ] Firewall rules you added removed; locks on our own resources; backend-only budget alerts exist; actual cost written next to $50 when Cost Analysis is reviewed.
 - [ ] Ledger and this guide updated with everything you changed.

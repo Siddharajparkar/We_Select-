@@ -143,8 +143,15 @@ def test_threshold_is_strictly_greater_than_80_percent() -> None:
 
 # ── Azure provider over a mock transport ────────────────────────────────────────────────────
 def settings(**kw: object):  # type: ignore[no-untyped-def]
-    return load_settings(AI_MODE="azure", FOUNDRY_ENDPOINT="https://ai.example.invalid", FOUNDRY_KEY="k-secret-1",
-                         FOUNDRY_DEPLOYMENT="gpt-4o", **kw)  # fmt: skip
+    values = {
+        "AI_MODE": "azure",
+        "FOUNDRY_API_STYLE": "v1",
+        "FOUNDRY_ENDPOINT": "https://ai.example.invalid",
+        "FOUNDRY_KEY": "k-secret-1",
+        "FOUNDRY_DEPLOYMENT": "phi-test-deployment",
+    }
+    values.update(kw)
+    return load_settings(**values)
 
 
 def chat(content: str, tokens: int = 100) -> httpx.Response:
@@ -171,7 +178,7 @@ def test_request_shape_headers_and_tokens() -> None:
     assert str(req.url) == "https://ai.example.invalid/openai/v1/chat/completions"
     assert req.headers["api-key"] == "k-secret-1"
     body = json.loads(req.content)
-    assert body["model"] == "gpt-4o" and body["temperature"] == 0.7
+    assert body["model"] == "phi-test-deployment" and body["temperature"] == 0.7
     assert body["response_format"] == {"type": "json_object"} and body["max_tokens"] == 2000
     assert body["messages"][1]["content"].count("<<<JD") == 1
 
@@ -185,7 +192,9 @@ def test_azure_deployments_style_url() -> None:
 
     p, _ = provider(handler, FOUNDRY_API_STYLE="azure-deployments", FOUNDRY_API_VERSION="2024-10-21")
     p.generate_questions(gen_input(count=1))
-    assert seen == ["https://ai.example.invalid/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21"]
+    assert seen == [
+        "https://ai.example.invalid/openai/deployments/phi-test-deployment/chat/completions?api-version=2024-10-21"
+    ]
 
 
 def test_invalid_json_is_retried_with_the_retry_sentence_then_succeeds() -> None:
