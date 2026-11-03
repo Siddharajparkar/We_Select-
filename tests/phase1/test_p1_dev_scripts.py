@@ -510,3 +510,98 @@ def test_verify_hands_the_platform_key_to_the_harness_without_printing(
     assert verify.harness_env(f, base={"E2E_PLATFORM_KEY": "explicit"})["E2E_PLATFORM_KEY"] == "explicit"
     assert "E2E_PLATFORM_KEY" not in verify.harness_env(tmp_path / "missing", base={})
     assert "real-looking" not in capsys.readouterr().out
+
+
+# ── oidc / configure_app / github_settings ─────────────────────────────────────────────────────
+configure_app = _load("configure_app")
+github_settings = _load("github_settings")
+
+
+@pytest.fixture
+def ocfg(monkeypatch: pytest.MonkeyPatch) -> None:
+    cfg = {**PCFG, "GITHUB_REPO": "someowner/somerepo"}
+    monkeypatch.setattr(provision, "load_config", lambda: dict(cfg))
+    monkeypatch.setattr(configure_app, "load_config", lambda: dict(cfg))
+    monkeypatch.setattr(github_settings, "load_config", lambda: dict(cfg))
+    monkeypatch.setattr(provision, "require_signoff", lambda: None)
+    monkeypatch.setattr(configure_app, "require_signoff", lambda: None)
+
+
+def test_oidc_creates_both_github_subjects_on_the_deploy_identity(ocfg: None) -> None:
+    az = FakeAz(missing=("identity federated-credential show",))
+    assert provision.main(["oidc", "--apply"], runner=az) == 0
+    creates = az.writes()
+    subjects = {c[c.index("--subject") + 1] for c in creates}
+    assert subjects == {"repo:someowner/somerepo:ref:refs/heads/main", "repo:someowner/somerepo:environment:production"}
+    for c in creates:
+        assert c[c.index("--identity-name") + 1] == "dep"  # the deploy identity, never the runtime one
+        assert c[c.index("--audiences") + 1] == "api://AzureADTokenExchange"
+        assert c[c.index("--issuer") + 1] == "https://token.actions.githubusercontent.com"
+
+
+def test_oidc_is_idempotent(ocfg: None) -> None:
+    az = FakeAz()
+    assert provision.main(["oidc", "--apply"], runner=az) == 0
+    assert az.writes() == []
+
+
+def test_configure_app_dry_run_lists_names_only(ocfg: None, capsys: pytest.CaptureFixture[str]) -> None:
+    az = FakeAz()
+    assert configure_app.main([], runner=az) == 0
+    out = capsys.readouterr().out
+    assert "DRY RUN" in out and "DATABASE_URL" in out and az.writes() == []
+    assert "SOME-ID" not in out  # the fake fqdn is never echoed in the dry run listing
+
+
+def test_configure_app_applies_production_settings_with_secret_references(ocfg: None) -> None:
+    az = FakeAz()
+    assert configure_app.main(["--apply"], runner=az) == 0
+    (cmd,) = az.writes()
+    pairs = dict(p.split("=", 1) for p in cmd[cmd.index("--set-env-vars") + 1 : -2])
+    assert pairs["APP_ENV"] == "production" and pairs["REPO_BACKEND"] == "sql" and pairs["AI_MODE"] == "azure"
+    assert pairs["FOUNDRY_DEPLOYMENT"] == "Phi-4-mini-instruct"
+    assert pairs["APP_BASE_URL"].startswith("https://")
+    secret_vars = {k: v for k, v in pairs.items() if v.startswith("secretref:")}
+    assert set(secret_vars) == set(common.SECRETS.values())
+    assert {v.removeprefix("secretref:") for v in secret_vars.values()} == {
+        common.app_secret_key(n) for n in common.SECRETS
+    }
+    assert "COOKIE_SECURE" not in pairs  # production default (true) must apply
+    assert not any(v.startswith(("Server=", "dev-only")) for v in pairs.values())
+
+
+def test_configure_app_settings_pass_the_production_validation() -> None:
+    """The plain settings + safe placeholders for the secrets must satisfy the app's production rules."""
+    from app.config import load_settings
+
+    plain = configure_app.plain_settings(PCFG, "app.example.invalid")
+    env = {**plain, "DATABASE_URL": "Server=tcp:x,1433;Database=d;User ID=u;Password=p", "SESSION_SECRET": "s" * 40,
+           "PLATFORM_KEY": "p" * 40, "FOUNDRY_ENDPOINT": "https://x.invalid", "FOUNDRY_KEY": "k",
+           "ACS_CONNECTION_STRING": "endpoint=https://x.invalid/;accesskey=a", "ACS_SENDER": "a@b.invalid",
+           "BLOB_CONNECTION_STRING": "UseDevelopmentStorage=true"}  # fmt: skip
+    import os
+
+    saved = {k: os.environ.get(k) for k in env}
+    try:
+        os.environ.update(env)
+        s = load_settings()
+    finally:
+        for k, v in saved.items():
+            os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+    assert s.is_production and s.REPO_BACKEND == "sql" and s.COOKIE_SECURE is True
+
+
+def test_github_settings_prints_what_the_workflows_read(ocfg: None, capsys: pytest.CaptureFixture[str]) -> None:
+    class Az:
+        def __call__(self, cmd, **_kw):  # type: ignore[no-untyped-def]
+            line = " ".join(cmd[1:])
+            out = "CLIENT-ID\n" if line.startswith("identity show") else "TENANT-ID\tSUB-ID\n"
+            return subprocess.CompletedProcess(cmd, 0, out, "")
+
+    assert github_settings.main(runner=Az()) == 0
+    text = capsys.readouterr().out
+    import re
+
+    workflows = "".join(p.read_text(encoding="utf-8") for p in (DEV.parents[1] / ".github" / "workflows").glob("*.yml"))
+    for name in re.findall(r"(?:secrets|vars)\.(AZURE_[A-Z_]+)", workflows):
+        assert name in text, f"{name} is read by a workflow but not printed by github_settings.py"
