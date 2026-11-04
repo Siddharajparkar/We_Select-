@@ -138,3 +138,39 @@ def test_harness_upto_limits_phases(stub) -> None:  # type: ignore[no-untyped-de
 def test_harness_reports_network_errors_as_failures() -> None:
     r = harness("http://127.0.0.1:9", "--upto", "0")
     assert r.returncode == 1 and "FAIL phase00" in r.stdout and "network" in r.stdout
+
+
+# ── harness behaviour that only shows over https / a real network ───────────────────────────────────
+def _load_harness(name: str, path: Path):  # type: ignore[no-untyped-def]
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_harness_never_replays_a_session_from_the_cookie_jar() -> None:
+    """Regression: over https the Secure sid cookie was replayed, so 'unauthenticated' requests came back 200."""
+    import httpx
+
+    run = _load_harness("e2e_run_for_test", REPO / "scripts" / "e2e" / "run.py")
+    seen: list[str | None] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append(req.headers.get("cookie"))
+        return httpx.Response(200, headers={"set-cookie": "sid=abc123; Secure; HttpOnly; Path=/"})
+
+    ctx = run.Ctx(base_url="https://api.example.invalid", client=httpx.Client(transport=httpx.MockTransport(handler)))
+    ctx.request("POST", "/api/v1/auth/login")  # the server sets a Secure cookie; the jar stores it over https
+    ctx.request("GET", "/api/v1/auth/me")  # must carry NO cookie
+    ctx.request("GET", "/api/v1/auth/me", sid="explicit")  # only the explicit header may carry one
+    assert seen == [None, None, "sid=explicit"]
+
+
+def test_declared_oversize_probe_gets_the_413_envelope_from_a_live_server(live_server: str) -> None:
+    probe = _load_harness("e2e_p03_for_test", REPO / "scripts" / "e2e" / "checks" / "p03_pipeline.py")
+    status, body = probe.declared_oversize_probe(live_server)
+    assert status == 413 and b"PAYLOAD_TOO_LARGE" in body

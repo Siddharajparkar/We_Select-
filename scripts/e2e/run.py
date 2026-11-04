@@ -57,12 +57,16 @@ class Ctx:
         headers = dict(kw.pop("headers", {}))
         if sid:
             headers["Cookie"] = f"sid={sid}"
+        # Over https the Secure session cookie WOULD be replayed from the client's jar, turning "no session" requests
+        # into authenticated ones. Only the explicit header above may carry a session.
+        self.client.cookies.clear()
         return self.client.request(method, self.url(path), headers=headers, **kw)
 
     def url(self, path: str) -> str:
         return self.base_url.rstrip("/") + path
 
     def get(self, path: str, **kw: object) -> httpx.Response:
+        self.client.cookies.clear()
         return self.client.get(self.url(path), **kw)  # type: ignore[arg-type]
 
     def new_request_id(self) -> str:
