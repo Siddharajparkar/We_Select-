@@ -62,20 +62,12 @@ def test_runner_helpers() -> None:
     assert len(run46.substitute("{{$guid}}", v)) == 36
 
 
+@pytest.mark.parametrize("isolated_live_server", [{"JOB_TICK_SECONDS": "0.2"}], indirect=True)
 @pytest.mark.parametrize("key", list(spec46.COLLECTIONS))
-def test_spec_passes_against_the_in_process_app(key: str, tmp_path: Path) -> None:
+def test_spec_passes_against_the_in_process_app(key: str, isolated_live_server: str) -> None:
     """Run each collection through the Python runner against a real local server."""
     import httpx
 
-    from conftest import drain_output, start_server, wait_ready
-
-    proc, base = start_server({"JOB_TICK_SECONDS": "0.2"})
-    drain_output(proc)  # an unread pipe fills (small on Windows) and blocks the server mid-run
-    try:
-        wait_ready(base, proc)
-        rep = run46.run(key, base, {"waitSeconds": "1.5"}, httpx.Client(timeout=30.0))
-        assert not rep.failed, rep.failed
-        assert len(rep.results) >= 30
-    finally:
-        proc.terminate()
-        proc.wait(timeout=15)
+    rep = run46.run(key, isolated_live_server, {"waitSeconds": "1.5"}, httpx.Client(timeout=30.0))
+    assert not rep.failed, rep.failed
+    assert len(rep.results) >= 30

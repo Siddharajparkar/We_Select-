@@ -61,6 +61,7 @@
 - Decisions: new resources in East US; $50/month budget scoped to this backend; `AI_DAILY_TOKEN_CAP` stays as the per-tenant MVP guard.
 - Code: `api/.env.local` loading outside production (merged); Windows test harness fixed (734 passed, 2 skipped on this laptop); `scripts/dev/` (setup, run, verify, put_secrets, sync_secrets, provision) with tests; Container App YAML uses 20-character secret keys.
 - Stage 3 plan rewritten and awaiting the owner's `SIGN-OFF` line. No Azure resource has been created yet.
+- CI follow-up: removed the runtime top-level `conftest` import from the Phase 6 Postman test, which could resolve to `tests/system_testing/conftest.py`; the test now uses an isolated server fixture. Final focused validation: 11 passed. The full local run also passed the Phase 6 tests; its sole failure was a Windows Git Bash smoke-script test unable to create a file under `/tmp`.
 
 ## Next steps
 
