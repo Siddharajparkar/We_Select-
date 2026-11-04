@@ -217,13 +217,20 @@ def _oidc(c: Ctx) -> list[Action]:
 
     The deploy job runs in the `production` environment (subject ...:environment:production); rollback and nightly
     run from main without an environment (subject ...:ref:refs/heads/main). Both are needed.
+
+    GitHub may qualify the owner and repository with their numeric ids in the token subject, for example
+    ``repo:<owner>@<id>/<repo>@<id>:environment:production`` (the failed login prints the exact subject). Set
+    GITHUB_SUBJECT_REPO in config/azure.local.env to ``<owner>@<id>/<repo>@<id>`` to create credentials for that form too.
     """
-    repo = c.need("GITHUB_REPO")
     ident = c.need("AZ_DEPLOY_IDENTITY")
-    wanted = {
-        "gh-main-branch": f"repo:{repo}:ref:refs/heads/main",
-        "gh-env-production": f"repo:{repo}:environment:production",
-    }
+    forms = {"": c.need("GITHUB_REPO")}
+    subject_repo = c.cfg.get("GITHUB_SUBJECT_REPO", "")
+    if subject_repo and not subject_repo.startswith("<"):
+        forms["-id"] = subject_repo
+    wanted: dict[str, str] = {}
+    for suffix, repo in forms.items():
+        wanted[f"gh-main-branch{suffix}"] = f"repo:{repo}:ref:refs/heads/main"
+        wanted[f"gh-env-production{suffix}"] = f"repo:{repo}:environment:production"
     acts: list[Action] = []
     for name, subject in wanted.items():
         if c.exists(["identity", "federated-credential", "show", "-g", c.rg, "--identity-name", ident, "-n", name,

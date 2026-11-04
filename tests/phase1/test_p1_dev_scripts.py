@@ -605,3 +605,27 @@ def test_github_settings_prints_what_the_workflows_read(ocfg: None, capsys: pyte
     workflows = "".join(p.read_text(encoding="utf-8") for p in (DEV.parents[1] / ".github" / "workflows").glob("*.yml"))
     for name in re.findall(r"(?:secrets|vars)\.(AZURE_[A-Z_]+)", workflows):
         assert name in text, f"{name} is read by a workflow but not printed by github_settings.py"
+
+
+def test_oidc_also_trusts_the_id_qualified_subject_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression: GitHub sent repo:<owner>@<id>/<repo>@<id>:environment:production and name-only credentials failed."""
+    cfg = {**PCFG, "GITHUB_REPO": "someowner/somerepo", "GITHUB_SUBJECT_REPO": "someowner@111/somerepo@222"}
+    monkeypatch.setattr(provision, "load_config", lambda: dict(cfg))
+    monkeypatch.setattr(provision, "require_signoff", lambda: None)
+    # the two name-based credentials already exist; only the id-qualified ones are missing
+    az = FakeAz(missing=("identity federated-credential show -g rg --identity-name dep -n gh-main-branch-id",
+                         "identity federated-credential show -g rg --identity-name dep -n gh-env-production-id"))  # fmt: skip
+    assert provision.main(["oidc", "--apply"], runner=az) == 0
+    subjects = {c[c.index("--subject") + 1] for c in az.writes()}
+    assert subjects == {
+        "repo:someowner@111/somerepo@222:ref:refs/heads/main",
+        "repo:someowner@111/somerepo@222:environment:production",
+    }
+    names = {c[c.index("-n") + 1] for c in az.writes()}
+    assert names == {"gh-main-branch-id", "gh-env-production-id"}
+
+
+def test_oidc_without_the_id_setting_keeps_the_name_based_subjects_only(ocfg: None) -> None:
+    az = FakeAz(missing=("identity federated-credential show",))
+    provision.main(["oidc", "--apply"], runner=az)
+    assert len(az.writes()) == 2 and all("@" not in c[c.index("--subject") + 1] for c in az.writes())
