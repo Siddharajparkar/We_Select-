@@ -1,0 +1,258 @@
+<h1 id="s1">1. Overview</h1>
+
+<h2>What the project is</h2>
+<p>The AI Candidate Assessment Platform helps companies test job candidates. A recruiter describes a job (or uploads a job-description PDF), the platform uses an AI language model to write exam questions for that job, the recruiter reviews and approves them, and, in later phases, candidates take a timed exam and are scored. This document describes the <b>backend</b>: a REST API (a web service that other programs call over HTTPS and exchange JSON data with). The existing web front end belongs to a separate project and is not covered here.</p>
+<p><b>Type of application:</b> a multi-tenant (many companies share one system, each seeing only its own data) cloud-hosted web API, built in Python with FastAPI, packaged as a container and run on Azure Container Apps.</p>
+
+<h2>What has been built so far (phases 0 to 6 of 13)</h2>
+<table>
+<tr><th>Capability</th><th>State</th></tr>
+<tr><td>Sign-in, companies (tenants) and users, with roles (admin, recruiter)</td><td>Built and verified on real Azure</td></tr>
+<tr><td>Assessments with job-description text or PDF upload (stored in Azure Blob Storage)</td><td>Built and verified on real Azure</td></tr>
+<tr><td>AI question generation in the background, review, edit, regenerate and approve</td><td>Built and verified with the real Phi-4-mini-instruct model</td></tr>
+<tr><td>Database with 13 tables, created automatically by migrations</td><td>Live in Azure SQL</td></tr>
+<tr><td>Container image, automatic build, test, scan and release from GitHub, automatic rollback on failure</td><td>First release done; rollback drill pending</td></tr>
+<tr><td>Secrets in Azure Key Vault; passwordless access using managed identities and OIDC</td><td>In place</td></tr>
+</table>
+
+<h2>What we are building end to end</h2>
+<p>Phases 7 to 13 are not started: participants and email invitations (7), the candidate exam with a timer (8), scoring and AI marking (9), results, overrides, export and audit (10), hardening (11), complete CI/CD gates (12) and release and handover (13). Progress is tracked in <code>docs/PROGRESS.md</code> and <code>docs/PROGRESS_REPORT.md</code>.</p>
+
+<div class="note"><b>How to read this document.</b> Technical terms are explained when first used. Names of Azure resources are placeholders such as <code>&lt;RG&gt;</code> because the source repository is public. <b>⚠️ TO CONFIRM</b> marks anything not proven during the work.</div>
+
+<h1 id="s2">2. End-to-end architecture</h1>
+<p>At run time one small service, <b>assess-api</b>, does the work. It runs as a container in Azure Container Apps and talks to five other Azure services. A second, separate path delivers new versions of the code to it. The numbered figure in the next section shows both.</p>
+
+<h2>Run-time path (what happens when someone uses the API)</h2>
+<ol>
+<li>A client sends an HTTPS request to <code>/api/v1/...</code>. The Container Apps front door (the <i>ingress</i>) terminates TLS and forwards it to the container on port 8080.</li>
+<li>The API checks the session cookie, finds the caller's company and role, runs the business rule and reads or writes <b>Azure SQL</b> (all data lives in the schema <code>assess</code>).</li>
+<li>Uploaded job-description PDFs go to a private container in <b>Azure Blob Storage</b>; the text is extracted and stored with the assessment.</li>
+<li>Question generation is slow, so the API answers immediately with <code>202 Accepted</code> and a job id. A background job inside the same process calls the <b>Phi-4-mini-instruct</b> model in <b>Azure AI Foundry</b>, validates every answer strictly, and saves the questions. The client polls the job until it is done.</li>
+<li>Requests, dependency calls and logs are sent to <b>Application Insights</b>.</li>
+<li><b>Azure Communication Services</b> (email) is configured but is first used in Phase 7 (invitations); real delivery is not yet proven (⚠️ TO CONFIRM).</li>
+</ol>
+
+<h2>Secrets and identity</h2>
+<p>The application's nine secrets (database connection, signing secret, platform key, AI endpoint and key, email connection and sender, storage connection, telemetry connection) are stored in <b>Azure Key Vault</b>. The Container App holds only <i>references</i> to them and reads them through its own <b>managed identity</b> (an Azure-provided login for a program, with no password to manage). Neither the code, nor GitHub, nor the container image contains a secret.</p>
+
+<h2>Delivery path (how a code change reaches Azure)</h2>
+<p>Merging a change to the <code>main</code> branch starts a GitHub Actions workflow that checks, builds and releases it. GitHub proves its identity to Azure with <b>OIDC</b> (a short-lived token exchanged through Microsoft Entra ID, with no stored password), pushes the image to <b>Azure Container Registry</b>, and updates the Container App. Section 7 explains each step.</p>
+
+<div class="wide"><h1 id="s3">3. Architecture diagram</h1>
+<figure>{{FIG_ARCHITECTURE}}<figcaption>Figure 1: Azure services and how they connect. Green: delivery path. Blue: request and data flow. Dashed: planned for Phase 7. Icons from the Azure icon set; Azure AI Foundry is drawn with the generic AI services icon (⚠️ TO CONFIRM: no dedicated Foundry icon was available).</figcaption></figure>
+
+</div>
+
+<h2>Reading the diagram</h2>
+<table>
+<tr><th>Element</th><th>What it is</th><th>Region</th></tr>
+<tr><td>Resource group <code>&lt;RG&gt;</code></td><td>One Azure "folder" holding all the project's resources, including some that belong to the older portal</td><td>East US</td></tr>
+<tr><td>assess-api in a Container Apps environment</td><td>The API itself: 0.25 vCPU, 0.5 GiB memory, exactly one replica</td><td>East US</td></tr>
+<tr><td>Container Registry, Key Vault, Blob Storage, managed identities</td><td>Created for this project</td><td>East US</td></tr>
+<tr><td>Azure SQL Database</td><td>Existing serverless database shared with the portal; our tables are isolated in schema <code>assess</code></td><td>West US</td></tr>
+<tr><td>Azure AI Foundry (Phi-4-mini-instruct)</td><td>Existing AI resource and model deployment</td><td>North Central US</td></tr>
+<tr><td>Application Insights</td><td>Existing telemetry resource</td><td>North Central US</td></tr>
+<tr><td>Communication Services + Email</td><td>Existing communication resource; email service and Azure-managed domain created for this project</td><td>Global</td></tr>
+</table>
+
+<h1 id="s4">4. Key design decisions</h1>
+<table>
+<tr><th style="width:26%">Decision</th><th>Why</th></tr>
+<tr><td>Python 3.12, FastAPI, Pydantic v2</td><td>Fixed by the project's decision record (Node.js is 0 %). FastAPI gives typed request validation and automatic documentation in development.</td></tr>
+<tr><td>Azure Container Apps (Consumption, 1 replica, 0.25 vCPU / 0.5 GiB)</td><td>Runs a container without managing servers and fits the $50 per month budget. One replica is deliberate: the job queue runs inside the API process, so a single instance keeps it simple (⚠️ scaling beyond one replica needs a review of the job claim logic).</td></tr>
+<tr><td>Reuse the existing SQL database; isolate in schema <code>assess</code> with a least-privilege user</td><td>Avoids paying for a second database. The contained user <code>assess_app</code> owns only the schema <code>assess</code> and has no rights on the portal's tables. The database is serverless and pauses when idle, which saves money but makes the first connection after a pause slow (up to about a minute).</td></tr>
+<tr><td>One repository layer for SQL Server and in-memory SQLite</td><td>The same code and tests run offline and in Azure, so laptops need no cloud services for most work.</td></tr>
+<tr><td>Provider pattern with fake versions (AI, email, files)</td><td>Each external service sits behind an interface. Tests and offline runs use fakes; production uses the Azure versions. Production refuses the fakes.</td></tr>
+<tr><td>Phi-4-mini-instruct as the AI model, over the OpenAI-compatible <code>v1</code> route</td><td>Already deployed and cheap. Live measurement showed it needs tolerant parsing of its answers and sometimes stalls, so the parser maps the option text to a letter and a stalled call is retried once. The strict checks (exactly four distinct options, one correct answer) were not loosened.</td></tr>
+<tr><td>Background jobs in-process, stored in the database</td><td>No extra queue service to pay for or operate. Jobs survive a restart and are retried with back-off.</td></tr>
+<tr><td>Key Vault references and managed identities</td><td>No secret in code, GitHub or the image. The runtime identity can only pull images and read Key Vault; the deploy identity can only push images and update this one app.</td></tr>
+<tr><td>GitHub OIDC instead of a stored Azure password</td><td>Nothing to leak or rotate. GitHub's token must match a rule that names the repository and the branch or environment.</td></tr>
+<tr><td>New resources in East US</td><td>Owner decision: same region as the existing portal. The database stays in West US, so each query crosses regions; measured impact is acceptable (simple request about 0.2 s from the laptop).</td></tr>
+<tr><td>No Log Analytics workspace for the Container Apps environment</td><td>Saves cost. Application Insights already records requests and logs; container console logs are read on demand with the Azure CLI.</td></tr>
+<tr><td>Human approval gate for every Azure change</td><td>Every script that changes Azure refuses to run until the owner writes an approval line in the provisioning plan, and runs as a dry run unless told to apply.</td></tr>
+<tr><td>Production guard rails in the configuration</td><td>In production the app refuses to start with fake providers, the in-memory database, weak or development secrets, or an insecure cookie.</td></tr>
+</table>
+
+<h1 id="s5">5. Database interaction</h1>
+
+<h2>Connection method</h2>
+<p>The API connects to Azure SQL with <b>pyodbc</b> and Microsoft's <b>ODBC Driver 18</b>, through <b>SQLAlchemy 2 Core</b> (a Python library that builds and runs SQL). The connection is encrypted (TLS, certificate checked). The connection string comes from the secret <code>database-url</code> in Key Vault and names the least-privilege user <code>assess_app</code>. Its <code>Connection Timeout</code> value becomes the login timeout (default 30 s; 90 s is configured so a paused serverless database has time to resume).</p>
+
+<h2>How the data flows</h2>
+<ol>
+<li>A route calls a service (or a repository for a simple read). The caller's tenant id comes from the authenticated session, never from the request.</li>
+<li>Repositories build SQL with SQLAlchemy Core. Every query on tenant data includes the tenant id.</li>
+<li>Each unit of work runs in its own transaction (<code>Database.begin()</code>). Connections come from a pool: up to 10, recycled every 30 minutes, checked before use (<i>pre-ping</i>), with no overflow connections.</li>
+<li>Transient Azure errors (for example a database that is resuming or briefly unavailable) are retried up to 3 times with a back-off starting at 200 ms.</li>
+</ol>
+
+<h2>Schema and migrations</h2>
+<p>All objects live in the schema <code>assess</code>. At start-up, before the API accepts traffic, a migration runner applies numbered T-SQL scripts (<code>0001_init</code>, <code>0002_sessions_last_seen</code>, <code>0003_jobs_questions_ai</code>) in order, each in its own transaction. It takes a database-wide lock (<code>sp_getapplock</code>) so two instances cannot migrate at once and records progress in <code>schema_migrations</code>. A bad connection string makes the container exit instead of serving requests.</p>
+<table>
+<tr><th>Table</th><th>Holds</th><th>Used by</th></tr>
+<tr><td>tenants, users</td><td>Companies and their staff (roles admin or recruiter; global unique, case-insensitive emails)</td><td>Phase 4</td></tr>
+<tr><td>sessions, login_attempts</td><td>Login sessions (stored as hashes) and failed-login tracking for lockout</td><td>Phase 4</td></tr>
+<tr><td>assessments, questions</td><td>Assessments, job description, sections, and the generated or edited questions</td><td>Phases 5 and 6</td></tr>
+<tr><td>jobs</td><td>The background job queue, with status, attempts and tokens used</td><td>Phase 6</td></tr>
+<tr><td>audit_log</td><td>Record of important actions</td><td>Written today by tenant, user and assessment actions; reporting in Phase 10</td></tr>
+<tr><td>participants, attempts, responses, scores</td><td>Candidates, exam attempts, answers and marks</td><td>Tables exist; used from Phases 7 to 10</td></tr>
+<tr><td>schema_migrations</td><td>Which migrations were applied</td><td>Migration runner</td></tr>
+</table>
+<p><b>Verified on real Azure:</b> 13 tables in <code>assess</code>, migrations 1 to 3 recorded, and no tables created in the shared <code>dbo</code> schema.</p>
+
+<h1 id="s6">6. Deployment</h1>
+<p>The API is deployed as a container image to <b>Azure Container Apps</b>. The image is built from <code>api/Dockerfile</code> (Python 3.12 slim, Microsoft ODBC Driver 18, non-root user) on a GitHub runner and stored in <b>Azure Container Registry</b> under the tag of the full commit SHA (never <code>latest</code>), so the running version can always be traced to a commit.</p>
+<table>
+<tr><th>Setting</th><th>Value</th></tr>
+<tr><td>Size and scale</td><td>0.25 vCPU, 0.5 GiB, minimum and maximum replicas both 1, single-revision mode</td></tr>
+<tr><td>Ingress</td><td>External HTTPS, target port 8080</td></tr>
+<tr><td>Image pull</td><td>By the app's managed identity (role AcrPull); registry admin user is disabled</td></tr>
+<tr><td>Secrets</td><td>Nine Key Vault references (container-app secret keys are limited to 20 characters, so three long names have short keys: <code>acs-conn</code>, <code>blob-conn</code>, <code>appi-conn</code>)</td></tr>
+<tr><td>Settings</td><td>Production mode, SQL backend, Azure AI, email and files, model deployment name, container name, URLs (21 settings in total, nine of them secret references)</td></tr>
+<tr><td>Start-up</td><td>Applies migrations, then starts the job loop and listens; the platform waits for the health check <code>/api/v1/health</code></td></tr>
+<tr><td>Shutdown</td><td>Graceful: 8 s for open requests plus up to 20 s for running jobs, inside Azure's 30 s limit</td></tr>
+<tr><td>Version proof</td><td>Every response carries <code>x-app-version</code> equal to the commit SHA; the smoke test compares it</td></tr>
+<tr><td>Rollback</td><td>Automatic to the previous image if the smoke test fails; manual through the <code>rollback.yml</code> workflow with an image tag (a full commit SHA)</td></tr>
+</table>
+<p><b>Verified on the deployed service:</b> health returns <code>{"status":"ok"}</code>, <code>x-app-version</code> equals the deployed commit, API documentation returns 404 in production, requests without a session return 401, and the start-up log shows migrations, configuration and the job loop starting. A repeat of all 28 live checks on the deployed API is pending (⚠️ TO CONFIRM).</p>
+
+<h1 id="s7">7. CI/CD pipeline</h1>
+<p><b>CI/CD</b> means continuous integration (automatically check every change) and continuous delivery (automatically release a verified change). It is implemented with <b>GitHub Actions</b>: YAML files in <code>.github/workflows/</code>. Each file defines a <i>workflow</i> with a trigger (<code>on:</code>), one or more <i>jobs</i> (run on a fresh Linux machine) and numbered <i>steps</i>.</p>
+
+<h2>Workflow files</h2>
+<table>
+<tr><th>File</th><th>Trigger</th><th>Purpose</th></tr>
+<tr><td><code>deploy.yml</code> ("CI/CD (FastAPI)")</td><td>Push to <code>main</code>, <code>phase/**</code>, <code>feature/**</code>; pull request into <code>main</code>; manual. Pushes that change only <code>docs/**</code> or <code>*.md</code> are ignored.</td><td>Check every change; on <code>main</code> release it</td></tr>
+<tr><td><code>nightly.yml</code></td><td>Daily at 02:00 UTC; manual</td><td>Fast verification and, when deployment is enabled, an Azure smoke test</td></tr>
+<tr><td><code>live-e2e.yml</code></td><td>Manual (inputs: base URL, highest phase, expected version, with AI, with email)</td><td>Runs the live end-to-end checks against a deployed API</td></tr>
+<tr><td><code>rollback.yml</code></td><td>Manual (input: image tag)</td><td>Points the app back at an older image</td></tr>
+<tr><td><code>load-test.yml</code></td><td>Manual</td><td>Small k6 load test (20 users, at most 5 minutes)</td></tr>
+</table>
+
+<h2>The pipeline, step by step</h2>
+<figure>{{FIG_PIPELINE}}<figcaption>Figure 2: trigger, the three parallel checks, the deploy gate and the deploy job.</figcaption></figure>
+<table>
+<tr><th style="width:20%">Job</th><th>What it does</th></tr>
+<tr><td><b>fast</b></td><td>Installs dependencies; runs ruff (style and lint), mypy (type checking) and pytest on everything that needs no database (with coverage); runs shellcheck on the shell scripts and a dry run of the legacy provisioning plan. A few minutes in total.</td></tr>
+<tr><td><b>container</b></td><td>Starts SQL Server 2022 and Azurite (a Blob Storage emulator) in Docker on the runner; creates the schema and the least-privilege user with throw-away passwords; runs the migrations twice (the second run must change nothing); runs every test against real SQL Server and Azurite (the same tests also run on SQLite); builds the image; runs the built container end to end; scans the image with Trivy (fails on fixable HIGH or CRITICAL findings).</td></tr>
+<tr><td><b>security</b></td><td>gitleaks scans the repository and its history for secrets; pip-audit reports vulnerable dependencies (advisory only).</td></tr>
+<tr><td><b>deploy</b></td><td>Runs only for a push to <code>main</code> when the repository variable <code>AZURE_DEPLOY_ENABLED</code> is <code>true</code>, after the three jobs above succeed, in the GitHub environment <code>production</code>. Steps: (1) sign in to Azure with OIDC; (2) record the current image for rollback; (3) set the ingress port to 8080; (4) build the image and push it to the registry with the commit SHA as tag; (5) update the app to that image and set <code>GIT_SHA</code>; (6) resolve the app address and smoke-test it: <code>/api/v1/health</code> must be ok and <code>x-app-version</code> must equal the commit SHA; (7) if any step fails, roll back to the recorded image.</td></tr>
+</table>
+
+<h2>How the pipeline is connected to Azure</h2>
+<ul>
+<li>GitHub stores three <i>secrets</i> (the deploy identity's client id, the tenant id and the subscription id, which are identifiers rather than passwords) and the <i>variables</i> <code>AZURE_RESOURCE_GROUP</code>, <code>AZURE_ACR_NAME</code> and <code>AZURE_DEPLOY_ENABLED</code>.</li>
+<li>The deploy identity <code>&lt;DEPLOY_IDENTITY&gt;</code> trusts GitHub through <b>federated credentials</b>: rules that accept only tokens whose subject names this repository and either the <code>main</code> branch or the <code>production</code> environment. GitHub qualifies the owner and repository with numeric IDs in its subject, so the credentials must carry that exact form (a mismatch caused the first deploy attempt to fail with <code>AADSTS700213</code>).</li>
+<li>The identity holds only <i>AcrPush</i> on the registry and <i>Contributor</i> on the <code>assess-api</code> app.</li>
+</ul>
+
+<h1 id="s8">8. API architecture</h1>
+<p>Every route is under <code>/api/v1</code>. Requests and responses are JSON. Interactive documentation is available only outside production.</p>
+
+<h2>Endpoints by module</h2>
+<table>
+<tr><th>Module (file)</th><th>Endpoints</th><th>Who may call</th></tr>
+<tr><td>health (<code>routes/health.py</code>)</td><td><code>GET /health</code></td><td>Anyone</td></tr>
+<tr><td>platform (<code>routes/platform.py</code>)</td><td><code>POST /platform/tenants</code> creates a company and its first admin</td><td>Holder of the platform key; limited to 10 requests per minute per address</td></tr>
+<tr><td>auth (<code>routes/auth.py</code>)</td><td><code>POST /auth/login</code>, <code>POST /auth/logout</code>, <code>GET /auth/me</code></td><td>Login: anyone; others: signed-in users</td></tr>
+<tr><td>users (<code>routes/users.py</code>)</td><td><code>GET /users</code>, <code>POST /users</code>, <code>PATCH /users/{id}</code></td><td>Admins</td></tr>
+<tr><td>assessments (<code>routes/assessments.py</code>)</td><td><code>POST</code> and <code>GET /assessments</code>; <code>GET</code>, <code>PATCH</code>, <code>DELETE /assessments/{id}</code>; <code>POST /assessments/{id}/jd-file</code>; <code>POST /assessments/{id}/close</code></td><td>Recruiters and admins</td></tr>
+<tr><td>generation (<code>routes/generation.py</code>)</td><td><code>POST /assessments/{id}/generate</code>; <code>GET /jobs/{id}</code>; <code>GET</code> and <code>POST /assessments/{id}/questions</code>; <code>PATCH</code> and <code>DELETE /questions/{id}</code>; <code>POST /questions/{id}/regenerate</code>; <code>POST /assessments/{id}/approve</code></td><td>Recruiters and admins</td></tr>
+</table>
+<p>Participants, candidate exam, results and audit endpoints are planned (phases 7 to 10).</p>
+
+<h2>Request and response flow</h2>
+<ol>
+<li><b>Middleware</b> assigns or echoes a request id (<code>x-request-id</code>), rejects oversized bodies (1 MB, or the upload size for the PDF route) with <code>413</code>, adds security headers (<code>nosniff</code>, no framing, no referrer, HSTS, no-store caching for the API), and writes one access-log line.</li>
+<li>The <b>route</b> validates the input with a Pydantic schema; bad input returns <code>400</code>.</li>
+<li>A <b>dependency</b> resolves the session cookie <code>sid</code> (HttpOnly, Secure, SameSite=Lax) into the caller's id, tenant and role, or returns <code>401</code>; role checks return <code>403</code>.</li>
+<li>The <b>service</b> applies business rules and uses repositories and providers.</li>
+<li>The answer is returned. Every error uses one shape: <code>{"error": {"code": "...", "message": "...", "details": [...]}}</code> and always carries the request id and version headers.</li>
+</ol>
+
+<h2>The asynchronous pattern for AI generation</h2>
+<p><code>POST /assessments/{id}/generate</code> checks the rules (job description of at least 100 words, daily limit of 20 generations per company, no approved assessment) and creates a job row, then returns <code>202 Accepted</code> with a job id. The client polls <code>GET /jobs/{id}</code> until the status is <code>done</code> or <code>failed</code>, then reads the questions.</p>
+
+<h2>Security rules worth knowing</h2>
+<ul>
+<li>Passwords are hashed with Argon2id. After five failed logins within ten minutes, further attempts are refused until ten minutes after the last failure.</li>
+<li>Sessions expire after 30 minutes of inactivity or 8 hours in total; logout invalidates the session.</li>
+<li>Uploads: PDF or text, at most 2 MB and 200 pages; extraction has a time guard.</li>
+<li>Data of another company returns <code>404</code> (not "forbidden"), so its existence is not revealed.</li>
+</ul>
+
+<h1 id="s9">9. Services</h1>
+<h2>Application services (inside the API)</h2>
+<table>
+<tr><th style="width:24%">Service (<code>services/</code>)</th><th>What it does</th></tr>
+<tr><td>auth</td><td>Login, session creation and validation, lockout, logout</td></tr>
+<tr><td>accounts</td><td>Creates a tenant with its first admin; creates and updates users; protects the last admin</td></tr>
+<tr><td>assessments</td><td>Creates, edits, closes and deletes assessments; keeps the stored job-description file in step</td></tr>
+<tr><td>jd_files</td><td>Validates an uploaded file, extracts text from PDFs with <code>pypdf</code>, stores it in Blob Storage under <code>tenant/assessment/file</code></td></tr>
+<tr><td>generation</td><td>Validates a generation request, enforces daily limits and creates a job</td></tr>
+<tr><td>questions</td><td>Adds, edits, deletes, regenerates and approves questions; freezes an approved assessment</td></tr>
+<tr><td>rate_limit, text</td><td>Sliding-window limiter; word counting</td></tr>
+</table>
+<h2>Background job engine (<code>jobs/</code>)</h2>
+<p>A loop checks the <code>jobs</code> table every 2 seconds and runs at most 3 jobs at once, each in a worker thread. A failed job is retried up to 3 attempts with a growing delay; permanent errors fail at once with a readable message; a job left running by a crashed process is re-queued after 5 minutes. The generation handler asks for questions in batches of 5, validates each answer, drops near-duplicates and enforces the per-company daily token cap (200,000 tokens).</p>
+<h2>Providers (<code>providers/</code>)</h2>
+<table>
+<tr><th>Provider</th><th>Real implementation</th><th>Fake (offline and tests)</th></tr>
+<tr><td>AI</td><td>Azure AI Foundry, OpenAI-compatible chat completions (API key in a header; retries a rate-limit answer and a stalled call once)</td><td>Scriptable, deterministic generator</td></tr>
+<tr><td>Email</td><td>Azure Communication Services Email (Phase 7)</td><td>Records messages in memory</td></tr>
+<tr><td>Files</td><td>Azure Blob Storage (private container)</td><td>In-memory store (Azurite in CI)</td></tr>
+</table>
+<h2>Azure services used</h2>
+<table>
+<tr><th>Service</th><th>Role in the application</th></tr>
+<tr><td>Azure Container Apps</td><td>Runs the API</td></tr>
+<tr><td>Azure Container Registry</td><td>Stores the application images</td></tr>
+<tr><td>Azure SQL Database</td><td>Stores all application data</td></tr>
+<tr><td>Azure Blob Storage</td><td>Stores uploaded job-description files</td></tr>
+<tr><td>Azure AI Foundry (Phi-4-mini-instruct)</td><td>Writes the exam questions</td></tr>
+<tr><td>Azure Communication Services (Email)</td><td>Will send candidate invitations (Phase 7)</td></tr>
+<tr><td>Azure Key Vault</td><td>Holds the secrets</td></tr>
+<tr><td>Managed identities and Microsoft Entra ID</td><td>Passwordless access for the app and for GitHub</td></tr>
+<tr><td>Application Insights</td><td>Telemetry</td></tr>
+</table>
+
+<h1 id="s10">10. Layers</h1>
+<p>The code is organised in layers so that each part has one job and can be tested on its own. Figure 3 shows the layers, and the table below states each layer's responsibility.</p>
+<figure>{{FIG_LAYERS}}<figcaption>Figure 3: the layers of the API. Routes use services for business rules and read repositories directly for simple lookups.</figcaption></figure>
+<table>
+<tr><th style="width:24%">Layer</th><th>Responsibility</th></tr>
+<tr><td>Middleware (<code>middleware.py</code>)</td><td>Cross-cutting HTTP concerns: request id, security headers, body-size limit, access log, last-resort error handling</td></tr>
+<tr><td>Routes (<code>routes/</code>, <code>schemas/</code>)</td><td>Define URLs, methods and status codes; validate input and shape output</td></tr>
+<tr><td>Dependencies and security (<code>deps.py</code>, <code>security/</code>)</td><td>Turn the session cookie into the caller; enforce roles; password hashing and cookie signing</td></tr>
+<tr><td>Services (<code>services/</code>)</td><td>Business rules</td></tr>
+<tr><td>Repositories (<code>repositories/</code>)</td><td>All data access, always scoped to the caller's tenant; one implementation for SQL Server and SQLite</td></tr>
+<tr><td>Database layer (<code>db/</code>, <code>migrations/</code>)</td><td>Engine, connection pooling and retry, schema definition, migration runner</td></tr>
+<tr><td>Providers, AI helpers, jobs</td><td>Talk to Azure AI, email and file storage; build prompts and validate model output; run background work</td></tr>
+<tr><td>Configuration and core (<code>config.py</code>, <code>core/</code>, <code>telemetry.py</code>)</td><td>Settings with production safety rules; clock, ids, logging, error types; telemetry setup</td></tr>
+</table>
+
+<h2>A request, end to end: "generate questions"</h2>
+<ol>
+<li><b>Middleware:</b> request id assigned, size checked, security headers prepared.</li>
+<li><b>Route</b> <code>POST /assessments/{id}/generate</code>: validates the body.</li>
+<li><b>Dependency:</b> the session cookie becomes the caller (tenant and role); a recruiter or admin is required.</li>
+<li><b>Service (generation):</b> loads the assessment through the <b>repository</b> (tenant-scoped), checks the job description length and the daily limit, and inserts a job row. The route returns <code>202</code> with the job id.</li>
+<li><b>Job engine</b> (a few seconds later, same process): claims the job, and for each section asks the <b>AI provider</b> for a batch of questions.</li>
+<li><b>AI provider:</b> calls the Phi model, then the <b>validator</b> checks the answer strictly; an unusable answer is retried up to 3 times.</li>
+<li><b>Repositories</b> store the valid questions; the job is marked <code>done</code> with the tokens used. The client's next poll of <code>GET /jobs/{id}</code> sees <code>done</code>.</li>
+</ol>
+
+<h1 id="s11">Appendix A. Known limits and open items</h1>
+<table>
+<tr><th>Item</th><th>State</th></tr>
+<tr><td>Email delivery to a real mailbox</td><td>Configured; not yet proven (first task of Phase 7) ⚠️ TO CONFIRM</td></tr>
+<tr><td>Actual monthly cost versus the $50 ceiling; AI token pricing</td><td>Planned allowance about $38 per month for non-AI items; not measured ⚠️ TO CONFIRM</td></tr>
+<tr><td>Rollback drill and the GitHub <code>live-e2e</code> run</td><td>Pending</td></tr>
+<tr><td>Full 28-check run against the deployed API</td><td>Phases 0 to 3 pass on the deployed API; the full run awaits a merged test-harness fix</td></tr>
+<tr><td>Phi model behaviour</td><td>Occasionally stalls (about 3 of 20 test calls) and needs tolerant parsing; a stronger model can be deployed later by changing one setting</td></tr>
+<tr><td>Single replica and in-process jobs</td><td>Intentional for the MVP; revisit before scaling out</td></tr>
+<tr><td>Database region</td><td>West US while the API is in East US; acceptable now, to be re-measured under load</td></tr>
+<tr><td>Teammate onboarding</td><td>No script yet to grant a teammate access; see <code>docs/SETUP.md</code> ⚠️ TO CONFIRM</td></tr>
+<tr><td>Azure icon licensing</td><td>Icons come from the Azure icon set bundled with the open-source <code>diagrams</code> library ⚠️ TO CONFIRM Microsoft's current icon terms</td></tr>
+</table>
