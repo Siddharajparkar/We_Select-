@@ -233,6 +233,22 @@ def live_server() -> Iterator[str]:
                 proc.kill()
 
 
+@pytest.fixture
+def isolated_live_server(request: pytest.FixtureRequest) -> Iterator[str]:
+    proc, base = start_server(getattr(request, "param", None))
+    drain_output(proc)
+    try:
+        wait_ready(base, proc)
+        yield base
+    finally:
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+
+
 # ── authenticated API helpers (Phase 4+) ────────────────────────────────────────────────────
 PASSWORD = "correct-horse-9"
 API = "/api/v1"
