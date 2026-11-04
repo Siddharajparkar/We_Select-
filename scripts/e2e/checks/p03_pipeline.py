@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 import re
+import socket
+import ssl
+from urllib.parse import urlparse
+
+import httpx
 
 
 def version_header_present(ctx):  # type: ignore[no-untyped-def]
@@ -38,10 +43,62 @@ def errors_carry_the_standard_headers(ctx):  # type: ignore[no-untyped-def]
     assert r.headers.get("x-request-id") == rid and r.headers.get("x-app-version"), "error response lacks headers"
 
 
+def _tls_context() -> ssl.SSLContext:
+    """Same CA bundle httpx uses (certifi). ssl.create_default_context() can fail loading the Windows cert store."""
+    import certifi
+
+    return ssl.create_default_context(cafile=certifi.where())
+
+
+def declared_oversize_probe(base_url: str, declared: int = 1_100_000) -> tuple[int, bytes]:
+    """Send only headers that DECLARE an oversized body and read the answer (status, body bytes).
+
+    The server rejects on the declared length without reading the body, so this is the exact rule real clients hit.
+    """
+    u = urlparse(base_url)
+    https = u.scheme == "https"
+    host = u.hostname or ""
+    raw = socket.create_connection((host, u.port or (443 if https else 80)), timeout=15)
+    sock = _tls_context().wrap_socket(raw, server_hostname=host) if https else raw
+    crlf = chr(13) + chr(10)
+    request = crlf.join(
+        [
+            "POST /api/v1/health HTTP/1.1",
+            f"Host: {u.netloc}",
+            "Content-Type: application/octet-stream",
+            f"Content-Length: {declared}",
+            "Connection: close",
+            "",
+            "",
+        ]
+    )
+    try:
+        sock.sendall(request.encode())
+        data = b""
+        try:
+            while chunk := sock.recv(65536):
+                data += chunk
+        except (ssl.SSLError, OSError):
+            pass  # the server closed without a TLS close_notify (Connection: close); keep what was already read
+    finally:
+        sock.close()
+    if not data:
+        raise AssertionError("no answer to the header-only oversize request")
+    head, _, body = data.partition((crlf * 2).encode())
+    return int(head.split()[1]), body
+
+
 def oversized_body_is_rejected_cleanly(ctx):  # type: ignore[no-untyped-def]
-    r = ctx.client.post(ctx.url("/api/v1/health"), content=b"x" * 1_100_000)
-    assert r.status_code == 413, f"status {r.status_code}"
-    assert r.json()["error"]["code"] == "PAYLOAD_TOO_LARGE"
+    try:
+        r = ctx.client.post(ctx.url("/api/v1/health"), content=b"x" * 1_100_000)
+        status, code = r.status_code, r.json()["error"]["code"]
+    except (httpx.TransportError, ssl.SSLError, OSError):
+        # The server answers 413 and closes while the upload is still running; across a real network (the cloud
+        # ingress) the reset can reach the client before it reads the answer. Prove the same rule header-only.
+        status, body = declared_oversize_probe(ctx.base_url)
+        code = "PAYLOAD_TOO_LARGE" if b"PAYLOAD_TOO_LARGE" in body else "?"
+    assert status == 413, f"status {status}"
+    assert code == "PAYLOAD_TOO_LARGE", f"code {code}"
 
 
 CHECKS = [
